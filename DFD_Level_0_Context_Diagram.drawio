@@ -1,0 +1,98 @@
+<mxfile host="app.diagrams.net" modified="2026-11-01T10:47:00.000Z" agent="Antigravity" version="24.0.0" type="device">
+  <diagram id="dfd-level-0" name="DFD Level 0 - Context Diagram">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- Title -->
+        <mxCell id="title" value="DFD LEVEL 0 (CONTEXT DIAGRAM) - HỆ THỐNG ĐIỂM DANH SINH VIÊN (STUDENT ATTENDANCE SYSTEM)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Times New Roman;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="140" y="30" width="890" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Central Process 0 -->
+        <mxCell id="process_0" value="&lt;b&gt;0.&lt;/b&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;b&gt;HỆ THỐNG ĐIỂM DANH&lt;br/&gt;SINH VIÊN&lt;/b&gt;&lt;br/&gt;(Student Attendance System)" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontFamily=Times New Roman;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="475" y="290" width="220" height="220" as="geometry" />
+        </mxCell>
+
+        <!-- External Entity: Admin -->
+        <mxCell id="entity_admin" value="&lt;b&gt;Admin&lt;/b&gt;&lt;br/&gt;(Quản trị viên)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontFamily=Times New Roman;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="80" y="130" width="170" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- External Entity: Lecturer -->
+        <mxCell id="entity_lecturer" value="&lt;b&gt;Lecturer&lt;/b&gt;&lt;br/&gt;(Giảng viên)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontFamily=Times New Roman;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="80" y="590" width="170" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- External Entity: Student -->
+        <mxCell id="entity_student" value="&lt;b&gt;Student&lt;/b&gt;&lt;br/&gt;(Sinh viên)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontFamily=Times New Roman;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="920" y="360" width="170" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Flow 1: Admin -> System -->
+        <mxCell id="flow_admin_in" value="1. Thông tin đăng nhập, dữ liệu tài khoản,&lt;br/&gt;lớp học, lịch học &amp;amp; cấu hình hệ thống" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0.3;entryY=0.05;entryDx=0;entryDy=0;entryPerimeter=0;strokeWidth=1.5;fontFamily=Times New Roman;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="entity_admin" target="process_0">
+          <mxGeometry x="-0.15" y="15" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="541" y="150" />
+            </Array>
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Flow 2: System -> Admin -->
+        <mxCell id="flow_admin_out" value="2. Kết quả xác thực, thông tin quản trị&lt;br/&gt;&amp;amp; báo cáo thống kê toàn hệ thống" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.25;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;strokeWidth=1.5;fontFamily=Times New Roman;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="process_0" target="entity_admin">
+          <mxGeometry x="0.1" y="-15" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="165" y="345" />
+            </Array>
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Flow 3: Lecturer -> System -->
+        <mxCell id="flow_lecturer_in" value="3. Thông tin đăng nhập, yêu cầu mở phiên,&lt;br/&gt;điểm danh thủ công &amp;amp; duyệt đơn nghỉ phép" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;entryPerimeter=0;strokeWidth=1.5;fontFamily=Times New Roman;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="entity_lecturer" target="process_0">
+          <mxGeometry x="-0.1" y="-15" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="165" y="455" />
+            </Array>
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Flow 4: System -> Lecturer -->
+        <mxCell id="flow_lecturer_out" value="4. Danh sách lớp, mã QR/OTP, đơn xin phép&lt;br/&gt;cần duyệt &amp;amp; báo cáo chuyên cần lớp học" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.3;exitY=0.95;exitDx=0;exitDy=0;exitPerimeter=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;strokeWidth=1.5;fontFamily=Times New Roman;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="process_0" target="entity_lecturer">
+          <mxGeometry x="0.15" y="15" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="541" y="650" />
+            </Array>
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Flow 5: Student -> System -->
+        <mxCell id="flow_student_in" value="5. Thông tin đăng nhập, dữ liệu điểm danh&lt;br/&gt;(QR/OTP/GPS) &amp;amp; đơn xin nghỉ phép" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.25;exitDx=0;exitDy=0;entryX=0.96;entryY=0.32;entryDx=0;entryDy=0;entryPerimeter=0;strokeWidth=1.5;fontFamily=Times New Roman;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="entity_student" target="process_0">
+          <mxGeometry x="-0.05" y="25" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="800" y="380" />
+              <mxPoint x="800" y="360" />
+            </Array>
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Flow 6: System -> Student -->
+        <mxCell id="flow_student_out" value="6. Lịch học, xác nhận điểm danh, kết quả&lt;br/&gt;duyệt đơn, lịch sử &amp;amp; cảnh báo chuyên cần" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.96;exitY=0.68;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;strokeWidth=1.5;fontFamily=Times New Roman;fontSize=12;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="process_0" target="entity_student">
+          <mxGeometry x="0.05" y="25" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="800" y="440" />
+              <mxPoint x="800" y="420" />
+            </Array>
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
