@@ -1,0 +1,219 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Page-1" id="cOkxvxyybleQux4MfNHk">
+    <mxGraphModel dx="860" dy="465" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="paN5AFwODw-5H3NM0cWk-1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Guest&amp;nbsp;" vertex="1">
+          <mxGeometry height="60" width="120" x="550" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Admin" vertex="1">
+          <mxGeometry height="60" width="140" x="140" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Student" vertex="1">
+          <mxGeometry height="80" width="154" x="600" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Lecturer" vertex="1">
+          <mxGeometry height="90" width="140" x="140" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-5" parent="1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;aspect=fixed;" value="0.0-Student attendance system&amp;nbsp;" vertex="1">
+          <mxGeometry height="154" width="154" x="360" y="268" as="geometry" />
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-6" edge="1" parent="1" source="paN5AFwODw-5H3NM0cWk-2" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;defaultLabelBackgroundColor=page;exitX=0.814;exitY=1.017;exitDx=0;exitDy=0;entryX=0;entryY=0;entryDx=0;entryDy=0;exitPerimeter=0;" target="paN5AFwODw-5H3NM0cWk-5" value="">
+          <mxGeometry relative="1" width="160" x="-0.3381" as="geometry">
+            <Array as="points">
+              <mxPoint x="253.96" y="287.57" />
+            </Array>
+            <mxPoint x="190" y="270" as="sourcePoint" />
+            <mxPoint x="350" y="270" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-7" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Login data" vertex="1">
+          <mxGeometry height="30" width="60" x="280" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-8" edge="1" parent="1" source="paN5AFwODw-5H3NM0cWk-5" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;defaultLabelBackgroundColor=page;exitX=0.045;exitY=0.37;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.564;entryY=1.083;entryDx=0;entryDy=0;entryPerimeter=0;" target="paN5AFwODw-5H3NM0cWk-2" value="">
+          <mxGeometry relative="1" width="160" x="0.0223" as="geometry">
+            <Array as="points">
+              <mxPoint x="220" y="321.96" />
+            </Array>
+            <mxPoint x="320" y="330" as="sourcePoint" />
+            <mxPoint x="250" y="340" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-9" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Login result" vertex="1">
+          <mxGeometry height="30" width="70" x="250" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-10" edge="1" parent="1" source="paN5AFwODw-5H3NM0cWk-2" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;defaultLabelBackgroundColor=page;exitX=0.35;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.565;entryDx=0;entryDy=0;entryPerimeter=0;exitPerimeter=0;" target="paN5AFwODw-5H3NM0cWk-5" value="">
+          <mxGeometry relative="1" width="160" x="-0.0024" as="geometry">
+            <Array as="points">
+              <mxPoint x="190" y="354.96" />
+            </Array>
+            <mxPoint x="320" y="330" as="sourcePoint" />
+            <mxPoint x="480" y="330" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-12" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Management Request" vertex="1">
+          <mxGeometry height="30" width="154" x="190" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-13" edge="1" parent="1" source="paN5AFwODw-5H3NM0cWk-5" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;defaultLabelBackgroundColor=page;exitX=0;exitY=1;exitDx=0;exitDy=0;" value="">
+          <mxGeometry relative="1" width="160" x="-0.3516" as="geometry">
+            <Array as="points">
+              <mxPoint x="160" y="400" />
+            </Array>
+            <mxPoint x="350" y="420" as="sourcePoint" />
+            <mxPoint x="160" y="233" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-14" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Management Result" vertex="1">
+          <mxGeometry height="30" width="120" x="200" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-15" edge="1" parent="1" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;defaultLabelBackgroundColor=page;entryX=0.266;entryY=0.948;entryDx=0;entryDy=0;entryPerimeter=0;exitX=1;exitY=0.15;exitDx=0;exitDy=0;exitPerimeter=0;" target="paN5AFwODw-5H3NM0cWk-5" value="">
+          <mxGeometry relative="1" width="160" x="0.0586" as="geometry">
+            <Array as="points">
+              <mxPoint x="400" y="473.47" />
+            </Array>
+            <mxPoint x="280" y="473.47" as="sourcePoint" />
+            <mxPoint x="418.98199999999997" y="417.00199999999995" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-16" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Login Data" vertex="1">
+          <mxGeometry height="30" width="70" x="290" y="445" as="geometry" />
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-19" edge="1" parent="1" source="paN5AFwODw-5H3NM0cWk-5" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;defaultLabelBackgroundColor=page;entryX=1.014;entryY=0.433;entryDx=0;entryDy=0;exitX=0.455;exitY=0.974;exitDx=0;exitDy=0;exitPerimeter=0;entryPerimeter=0;" target="paN5AFwODw-5H3NM0cWk-4" value="">
+          <mxGeometry relative="1" width="160" x="0.0395" as="geometry">
+            <Array as="points">
+              <mxPoint x="430.07" y="500" />
+            </Array>
+            <mxPoint x="314" y="510" as="sourcePoint" />
+            <mxPoint x="474" y="510" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-21" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Login Result" vertex="1">
+          <mxGeometry height="30" width="80" x="320" y="475" as="geometry" />
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-23" edge="1" parent="1" source="paN5AFwODw-5H3NM0cWk-4" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;defaultLabelBackgroundColor=page;exitX=1;exitY=0.667;exitDx=0;exitDy=0;entryX=0.61;entryY=1.006;entryDx=0;entryDy=0;entryPerimeter=0;exitPerimeter=0;" target="paN5AFwODw-5H3NM0cWk-5" value="">
+          <mxGeometry relative="1" width="160" x="-0.0404" as="geometry">
+            <Array as="points">
+              <mxPoint x="455.94" y="520" />
+            </Array>
+            <mxPoint x="300" y="530" as="sourcePoint" />
+            <mxPoint x="460" y="530" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-24" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Attendance Request" vertex="1">
+          <mxGeometry height="30" width="140" x="310" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-26" edge="1" parent="1" source="paN5AFwODw-5H3NM0cWk-5" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;defaultLabelBackgroundColor=page;entryX=0.993;entryY=0.922;entryDx=0;entryDy=0;exitX=0.779;exitY=0.942;exitDx=0;exitDy=0;exitPerimeter=0;entryPerimeter=0;" target="paN5AFwODw-5H3NM0cWk-4" value="">
+          <mxGeometry relative="1" width="160" x="-0.0364" as="geometry">
+            <Array as="points">
+              <mxPoint x="480" y="542.98" />
+            </Array>
+            <mxPoint x="540" y="420" as="sourcePoint" />
+            <mxPoint x="490" y="540" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-27" connectable="0" parent="paN5AFwODw-5H3NM0cWk-26" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];inheritText=1;defaultLabelBackgroundColor=page;" value="Attendance Information" vertex="1">
+          <mxGeometry relative="1" x="0.3722" y="-3" as="geometry">
+            <mxPoint x="1" y="-7" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-28" edge="1" parent="1" source="paN5AFwODw-5H3NM0cWk-3" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;defaultLabelBackgroundColor=page;exitX=0.25;exitY=0;exitDx=0;exitDy=0;entryX=0.922;entryY=0.779;entryDx=0;entryDy=0;entryPerimeter=0;" target="paN5AFwODw-5H3NM0cWk-5" value="">
+          <mxGeometry relative="1" width="160" x="0.0973" as="geometry">
+            <Array as="points">
+              <mxPoint x="638.5" y="390" />
+            </Array>
+            <mxPoint x="570" y="400" as="sourcePoint" />
+            <mxPoint x="730" y="400" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-29" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Login Data" vertex="1">
+          <mxGeometry height="30" width="70" x="530" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-30" edge="1" parent="1" source="paN5AFwODw-5H3NM0cWk-5" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;defaultLabelBackgroundColor=page;exitX=0.981;exitY=0.558;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.357;entryY=-0.037;entryDx=0;entryDy=0;entryPerimeter=0;" target="paN5AFwODw-5H3NM0cWk-3" value="">
+          <mxGeometry relative="1" width="160" x="0.0115" as="geometry">
+            <Array as="points">
+              <mxPoint x="654.98" y="353.93" />
+            </Array>
+            <mxPoint x="514" y="360" as="sourcePoint" />
+            <mxPoint x="674" y="360" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-32" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Login Result" vertex="1">
+          <mxGeometry height="30" width="80" x="525" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-33" edge="1" parent="1" source="paN5AFwODw-5H3NM0cWk-3" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;defaultLabelBackgroundColor=page;exitX=0.578;exitY=0.025;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.994;entryY=0.37;entryDx=0;entryDy=0;entryPerimeter=0;" target="paN5AFwODw-5H3NM0cWk-5" value="">
+          <mxGeometry relative="1" width="160" x="0.0271" as="geometry">
+            <Array as="points">
+              <mxPoint x="689.01" y="324.98" />
+            </Array>
+            <mxPoint x="594" y="340" as="sourcePoint" />
+            <mxPoint x="680" y="320" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-34" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Attendance Data" vertex="1">
+          <mxGeometry height="30" width="100" x="550" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-35" edge="1" parent="1" source="paN5AFwODw-5H3NM0cWk-5" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;defaultLabelBackgroundColor=page;exitX=0.935;exitY=0.208;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" target="paN5AFwODw-5H3NM0cWk-3" value="">
+          <mxGeometry relative="1" width="160" as="geometry">
+            <Array as="points">
+              <mxPoint x="715.5" y="300.03" />
+            </Array>
+            <mxPoint x="520" y="274.5" as="sourcePoint" />
+            <mxPoint x="680" y="274.5" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-36" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Attendance Result" vertex="1">
+          <mxGeometry height="30" width="110" x="545" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-37" edge="1" parent="1" source="paN5AFwODw-5H3NM0cWk-3" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;defaultLabelBackgroundColor=page;exitX=0.896;exitY=0.025;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.831;entryY=0.11;entryDx=0;entryDy=0;entryPerimeter=0;" target="paN5AFwODw-5H3NM0cWk-5" value="">
+          <mxGeometry relative="1" width="160" as="geometry">
+            <Array as="points">
+              <mxPoint x="737.98" y="284.94" />
+            </Array>
+            <mxPoint x="610" y="220" as="sourcePoint" />
+            <mxPoint x="770" y="220" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-38" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Complaint Data" vertex="1">
+          <mxGeometry height="30" width="90" x="540" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-39" edge="1" parent="1" source="paN5AFwODw-5H3NM0cWk-5" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;defaultLabelBackgroundColor=page;exitX=0.818;exitY=0.896;exitDx=0;exitDy=0;entryX=0.084;entryY=-0.037;entryDx=0;entryDy=0;entryPerimeter=0;exitPerimeter=0;" target="paN5AFwODw-5H3NM0cWk-3" value="">
+          <mxGeometry relative="1" width="160" x="0.0045" as="geometry">
+            <Array as="points">
+              <mxPoint x="610" y="410" />
+            </Array>
+            <mxPoint x="440" y="450" as="sourcePoint" />
+            <mxPoint x="600" y="450" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-40" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Complaint Status" vertex="1">
+          <mxGeometry height="30" width="100" x="525" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-41" edge="1" parent="1" source="paN5AFwODw-5H3NM0cWk-1" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;defaultLabelBackgroundColor=page;entryX=0.662;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;exitX=0;exitY=0.75;exitDx=0;exitDy=0;" target="paN5AFwODw-5H3NM0cWk-5" value="">
+          <mxGeometry relative="1" width="160" as="geometry">
+            <Array as="points">
+              <mxPoint x="461.95" y="215" />
+            </Array>
+            <mxPoint x="370" y="180" as="sourcePoint" />
+            <mxPoint x="530" y="180" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-42" parent="1" style="text;whiteSpace=wrap;html=1;" value="Login / Recovery Request" vertex="1">
+          <mxGeometry height="40" width="120" x="414" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-44" edge="1" parent="1" source="paN5AFwODw-5H3NM0cWk-5" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;defaultLabelBackgroundColor=page;exitX=0.325;exitY=0.013;exitDx=0;exitDy=0;exitPerimeter=0;entryX=-0.025;entryY=0.133;entryDx=0;entryDy=0;entryPerimeter=0;" target="paN5AFwODw-5H3NM0cWk-1" value="">
+          <mxGeometry relative="1" width="160" x="-0.1805" as="geometry">
+            <Array as="points">
+              <mxPoint x="410.05" y="180" />
+            </Array>
+            <mxPoint x="344" y="160" as="sourcePoint" />
+            <mxPoint x="540" y="180" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="paN5AFwODw-5H3NM0cWk-45" parent="1" style="text;whiteSpace=wrap;html=1;" value="Login / Recovery Result" vertex="1">
+          <mxGeometry height="40" width="160" x="400" y="150" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
