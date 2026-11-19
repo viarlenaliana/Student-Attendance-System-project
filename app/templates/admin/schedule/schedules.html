@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="h4 mb-0">Lịch học</h1>
+    <div>
+      <button type="button" class="btn btn-primary" id="open_create_button">Tạo lịch học</button>
+      <button type="button" class="btn btn-outline-primary" id="open_makeup_button">Tạo lịch học bù</button>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }}" role="alert">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="get" action="{{ url_for('schedule.schedule_list_page') }}" class="row g-2 mb-3" id="schedule_filter_form">
+    <div class="col-md-4">
+      <label class="form-label" for="filter_class_id">Lớp học phần</label>
+      <select class="form-select" id="filter_class_id" name="class_id" onchange="this.form.submit()">
+        <option value="">Tất cả lớp học phần</option>
+        {% for option in class_options %}
+        <option value="{{ option.value }}" {% if filters.class_id == option.value|string %}selected{% endif %}>{{ option.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label" for="filter_status">Trạng thái</label>
+      <select class="form-select" id="filter_status" name="status" onchange="this.form.submit()">
+        <option value="">Tất cả trạng thái</option>
+        <option value="scheduled" {% if filters.status == 'scheduled' %}selected{% endif %}>Đang hiệu lực</option>
+        <option value="cancelled" {% if filters.status == 'cancelled' %}selected{% endif %}>Đã hủy</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label" for="filter_date_from">Từ ngày</label>
+      <input class="form-control" type="date" id="filter_date_from" name="date_from" value="{{ filters.date_from or '' }}" onchange="handleDateFilter(this)">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label" for="filter_date_to">Đến ngày</label>
+      <input class="form-control" type="date" id="filter_date_to" name="date_to" value="{{ filters.date_to or '' }}" onchange="handleDateFilter(this)">
+    </div>
+  </form>
+
+  {% if schedules %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle" id="schedule_list">
+      <thead>
+        <tr><th>Ngày</th><th>Giờ</th><th>Lớp học phần</th><th>Phòng</th><th>Loại</th><th>Trạng thái</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for item in schedules %}
+        <tr class="{% if item.status == 'cancelled' %}text-muted{% endif %}">
+          <td>{{ item.schedule_date }}</td>
+          <td>{{ item.start_time }}–{{ item.end_time }}</td>
+          <td>{{ item.class_name }}<br><small>{{ item.course_name }}</small></td>
+          <td>{{ item.room or '' }}</td>
+          <td>{{ 'Học bù' if item.schedule_type == 'makeup' else 'Chính khóa' }}</td>
+          <td>
+            {% if item.status == 'cancelled' %}
+              <span class="badge text-bg-secondary">Đã hủy</span>
+              {% if item.cancel_reason %}<br><small>{{ item.cancel_reason }}</small>{% endif %}
+            {% else %}
+              <span class="badge text-bg-success">Đang hiệu lực</span>
+            {% endif %}
+          </td>
+          <td class="text-end text-nowrap">
+            {% if item.status != 'cancelled' %}
+            <button type="button" class="btn btn-sm btn-outline-primary edit_button"
+                    data-action="{{ url_for('schedule.schedule_update_action', schedule_id=item.schedule_id) }}"
+                    data-record='{{ item|tojson }}'>Sửa</button>
+            <button type="button" class="btn btn-sm btn-outline-danger cancel_button"
+                    data-action="{{ url_for('schedule.schedule_cancel_action', schedule_id=item.schedule_id) }}"
+                    data-label="{{ item.class_name }} - {{ item.schedule_date }}">Hủy lịch</button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted">Chưa có lịch học nào khớp bộ lọc. Chọn "Tạo lịch học" để thêm lịch.</p>
+  {% endif %}
+</div>
+
+<div class="modal fade" id="schedule_modal" tabindex="-1" aria-labelledby="schedule_modal_title" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" id="schedule_form" class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title fs-5" id="schedule_modal_title"></h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label" for="field_class_id">Lớp học phần *</label>
+          <select class="form-select" id="field_class_id" name="class_id" required>
+            <option value="">-- Chọn --</option>
+            {% for option in class_options %}<option value="{{ option.value }}">{{ option.label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="field_schedule_date">Ngày học *</label>
+          <input class="form-control" type="date" id="field_schedule_date" name="schedule_date" required>
+        </div>
+        <div class="row">
+          <div class="col mb-3">
+            <label class="form-label" for="field_start_time">Giờ bắt đầu *</label>
+            <input class="form-control" type="time" id="field_start_time" name="start_time" required>
+          </div>
+          <div class="col mb-3">
+            <label class="form-label" for="field_end_time">Giờ kết thúc *</label>
+            <input class="form-control" type="time" id="field_end_time" name="end_time" required>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="field_room">Phòng</label>
+          <input class="form-control" type="text" id="field_room" name="room">
+        </div>
+        <div class="mb-3" id="original_schedule_group">
+          <label class="form-label" for="field_original_schedule_id">Học bù cho lịch (không bắt buộc)</label>
+          <select class="form-select" id="field_original_schedule_id" name="original_schedule_id">
+            <option value="">-- Không chọn --</option>
+            {% for item in schedules %}
+            <option value="{{ item.schedule_id }}">{{ item.class_name }} - {{ item.schedule_date }} {{ item.start_time }}{% if item.status == 'cancelled' %} (đã hủy){% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+        <button type="submit" class="btn btn-primary">Lưu lịch</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal fade" id="cancel_modal" tabindex="-1" aria-labelledby="cancel_modal_title" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" id="cancel_form" class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title fs-5" id="cancel_modal_title">Hủy lịch học</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <p id="cancel_label" class="mb-2"></p>
+        <p class="text-muted small">Lịch vẫn được lưu trong hệ thống với trạng thái "Đã hủy".</p>
+        <label class="form-label" for="cancel_reason">Lý do hủy</label>
+        <textarea class="form-control" id="cancel_reason" name="reason" rows="3"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Giữ lịch</button>
+        <button type="submit" class="btn btn-danger">Hủy lịch học</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function handleDateFilter(input) {
+    var val = input.value;
+    if (!val) {
+      input.form.submit();
+      return;
+    }
+    var parts = val.split("-");
+    if (parts.length === 3) {
+      var year = parseInt(parts[0], 10);
+      // Chỉ tự submit khi người dùng đã nhập đủ năm 4 chữ số hợp lệ (ví dụ từ năm 1900 đến 2100)
+      if (year >= 1900 && year <= 2100) {
+        input.form.submit();
+      }
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    ["filter_date_from", "filter_date_to"].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.addEventListener("keydown", function(e) {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            this.form.submit();
+          }
+        });
+      }
+    });
+
+    var schedule_modal = new bootstrap.Modal(document.getElementById("schedule_modal"));
+    var cancel_modal = new bootstrap.Modal(document.getElementById("cancel_modal"));
+    var schedule_form = document.getElementById("schedule_form");
+    var field_names = ["class_id", "schedule_date", "start_time", "end_time", "room"];
+
+    function open_schedule_modal(title, action, record, show_original) {
+      document.getElementById("schedule_modal_title").textContent = title;
+      schedule_form.action = action;
+      field_names.forEach(function (name) {
+        var value = record && record[name] !== null && record[name] !== undefined ? record[name] : "";
+        document.getElementById("field_" + name).value = value;
+      });
+      document.getElementById("field_original_schedule_id").value = "";
+      document.getElementById("original_schedule_group").hidden = !show_original;
+      document.getElementById("field_original_schedule_id").disabled = !show_original;
+      schedule_modal.show();
+    }
+
+    document.getElementById("open_create_button").addEventListener("click", function () {
+      open_schedule_modal("Tạo lịch học", "{{ url_for('schedule.schedule_create_action') }}", null, false);
+    });
+    document.getElementById("open_makeup_button").addEventListener("click", function () {
+      open_schedule_modal("Tạo lịch học bù", "{{ url_for('schedule.makeup_schedule_create_action') }}", null, true);
+    });
+    document.querySelectorAll(".edit_button").forEach(function (button) {
+      button.addEventListener("click", function () {
+        open_schedule_modal("Sửa lịch học", button.dataset.action, JSON.parse(button.dataset.record), false);
+      });
+    });
+    document.querySelectorAll(".cancel_button").forEach(function (button) {
+      button.addEventListener("click", function () {
+        document.getElementById("cancel_form").action = button.dataset.action;
+        document.getElementById("cancel_label").textContent = "Hủy lịch: " + button.dataset.label;
+        document.getElementById("cancel_reason").value = "";
+        cancel_modal.show();
+      });
+    });
+  });
+</script>
+{% endblock %}
