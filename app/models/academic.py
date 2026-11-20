@@ -1,6 +1,6 @@
 """Dữ liệu học tập: khoa/phòng ban, môn học, lớp học phần, đăng ký học.
 
-Quản lý kết nối cơ sở dữ liệu chung (MySQL theo thống nhất của nhóm và SQLite dự phòng)
+Quản lý kết nối cơ sở dữ liệu chung (MySQL và SQLite dự phòng)
 cùng schema dùng chung cho student, lecturer, schedule.
 """
 import os
