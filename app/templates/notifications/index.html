@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Thông báo - Student Attendance System{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div>
+    <h1 class="h4 fw-bold mb-0">Thông báo của tôi</h1>
+    <small class="text-muted">Bạn có <strong>{{ unread_count }}</strong> thông báo chưa đọc</small>
+  </div>
+  {% if unread_count > 0 %}
+  <form method="post" action="{{ url_for('notification.mark_all_read_action') }}">
+    <button type="submit" class="btn btn-outline-primary btn-sm">Đánh dấu tất cả đã đọc</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="surface-card p-3 mb-3">
+  <form method="get" action="{{ url_for('notification.notification_list_page') }}" class="row g-2 align-items-end">
+    <div class="col-md-5">
+      <label class="form-label small fw-semibold" for="filter_type">Loại sự kiện</label>
+      <select class="form-select" id="filter_type" name="notification_type">
+        <option value="">Tất cả loại thông báo</option>
+        {% for type_key, type_label in type_labels.items() %}
+          <option value="{{ type_key }}" {% if selected_type == type_key %}selected{% endif %}>{{ type_label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" id="unread_only" name="unread_only" value="1" {% if unread_only %}checked{% endif %}>
+        <label class="form-check-label" for="unread_only">Chỉ hiển thị thông báo chưa đọc</label>
+      </div>
+    </div>
+    <div class="col-md-3 d-flex gap-2">
+      <button type="submit" class="btn btn-outline-primary flex-grow-1">Lọc</button>
+      <a href="{{ url_for('notification.notification_list_page') }}" class="btn btn-outline-secondary">Xóa</a>
+    </div>
+  </form>
+</div>
+
+<div class="surface-card p-3">
+  {% if notifications %}
+  <div class="list-group list-group-flush">
+    {% for item in notifications %}
+    <div class="list-group-item p-3 mb-2 rounded border {% if not item.is_read %}notification-unread{% endif %}">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+        <div>
+          <span class="badge bg-primary me-1">{{ type_labels.get(item.notification_type, item.notification_type) }}</span>
+          {% if item.email_status == 'sent' %}
+            <span class="badge bg-success me-1">Đã gửi email</span>
+          {% elif item.email_status == 'failed' %}
+            <span class="badge bg-warning text-dark me-1">Lỗi gửi email</span>
+          {% else %}
+            <span class="badge bg-secondary me-1">Trong ứng dụng</span>
+          {% endif %}
+          <strong class="ms-1">{{ item.title }}</strong>
+          <p class="mb-1 mt-2">{{ item.message }}</p>
+          <small class="text-muted">{{ item.created_at }}</small>
+        </div>
+
+        <div class="text-end">
+          {% if not item.is_read %}
+            <form method="post" action="{{ url_for('notification.mark_read_action', notification_id=item.notification_id) }}">
+              <button type="submit" class="btn btn-sm btn-outline-primary">Đánh dấu đã đọc</button>
+            </form>
+          {% else %}
+            <span class="badge bg-light text-dark border">Đã đọc</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    <p class="text-muted mb-0">Không có thông báo nào.</p>
+  {% endif %}
+</div>
+{% endblock %}

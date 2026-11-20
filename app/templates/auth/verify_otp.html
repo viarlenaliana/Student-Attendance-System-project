@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Xác minh OTP - Student Attendance System{% endblock %}
+{% block content %}
+<div class="auth-card p-4 p-md-5">
+  <h1 class="h4 fw-bold mb-1 text-center">Xác minh OTP</h1>
+  <p class="text-muted small text-center mb-4">Bước 2/3: Nhập mã OTP gồm 6 chữ số đã gửi tới email của bạn</p>
+
+  <form method="post" action="{{ url_for('auth.verify_otp_page') }}">
+    <div class="mb-3">
+      <label class="form-label fw-semibold" for="email">Email</label>
+      <input
+        type="email"
+        class="form-control"
+        id="email"
+        name="email"
+        value="{{ pending_email or '' }}"
+        placeholder="example@university.edu.vn"
+        required
+      >
+    </div>
+
+    <div class="mb-4">
+      <label class="form-label fw-semibold" for="otp">Mã OTP (6 chữ số)</label>
+      <input
+        type="text"
+        class="form-control otp-input"
+        id="otp"
+        name="otp"
+        maxlength="6"
+        pattern="\d{6}"
+        inputmode="numeric"
+        placeholder="000000"
+        required
+        autofocus
+      >
+    </div>
+
+    <div class="d-grid gap-2">
+      <button type="submit" class="btn btn-primary">Xác minh OTP</button>
+      <a href="{{ url_for('auth.forgot_password_page') }}" class="btn btn-outline-secondary">Gửi lại mã OTP</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
