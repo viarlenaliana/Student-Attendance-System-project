@@ -1,594 +1,339 @@
-"""Dữ liệu học tập: khoa/phòng ban, môn học, lớp học phần, đăng ký học.
+"""admin: student lecturer, khoa/phòng ban, môn học, lớp học phần, đăng ký học.
 
-Quản lý kết nối cơ sở dữ liệu chung (MySQL và SQLite dự phòng)
-cùng schema dùng chung cho student, lecturer, schedule.
+route chỉ nhận request, kiểm tra quyền, gọi hàm
+nghiệp vụ trong app/models rồi trả template/redirect.
 """
-import os
-import re
-import sqlite3
-from datetime import datetime
+from functools import wraps
 
-from flask import current_app, has_app_context
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 
-try:
-    import pymysql
-    import pymysql.cursors
-except ImportError:
-    pymysql = None
+from app.models.academic import (
+    academic_error, add_student_to_class, create_class, create_course, create_department,
+    delete_class, delete_course, delete_department,
+    get_class_by_id, get_class_list, get_course_list, get_department_list, get_enrollment_list,
+    remove_student_from_class, update_class, update_course, update_department,
+)
+from app.models.lecturer import create_lecturer, delete_lecturer, get_lecturer_list, update_lecturer
+from app.models.student import create_student, delete_student, get_student_list, update_student
 
-
-class academic_error(Exception):
-    """Lỗi dữ liệu/nghiệp vụ; message hiển thị được cho người dùng."""
-
-
-# Schema MySQL chuẩn theo quy ước nhóm
-SCHEMA_SQL_MYSQL = [
-    """
-    CREATE TABLE IF NOT EXISTS departments (
-        department_id INT AUTO_INCREMENT PRIMARY KEY,
-        department_name VARCHAR(191) NOT NULL UNIQUE,
-        created_at VARCHAR(30) NOT NULL,
-        updated_at VARCHAR(30) NOT NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS students (
-        student_id INT AUTO_INCREMENT PRIMARY KEY,
-        user_id INT UNIQUE,
-        full_name VARCHAR(150) NOT NULL,
-        email VARCHAR(191) NOT NULL UNIQUE,
-        department_id INT,
-        created_at VARCHAR(30) NOT NULL,
-        updated_at VARCHAR(30) NOT NULL,
-        CONSTRAINT fk_students_dept FOREIGN KEY (department_id) REFERENCES departments(department_id) ON DELETE SET NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS lecturers (
-        lecturer_id INT AUTO_INCREMENT PRIMARY KEY,
-        user_id INT UNIQUE,
-        full_name VARCHAR(150) NOT NULL,
-        email VARCHAR(191) NOT NULL UNIQUE,
-        department_id INT,
-        created_at VARCHAR(30) NOT NULL,
-        updated_at VARCHAR(30) NOT NULL,
-        CONSTRAINT fk_lecturers_dept FOREIGN KEY (department_id) REFERENCES departments(department_id) ON DELETE SET NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS courses (
-        course_id INT AUTO_INCREMENT PRIMARY KEY,
-        course_name VARCHAR(191) NOT NULL UNIQUE,
-        department_id INT,
-        created_at VARCHAR(30) NOT NULL,
-        updated_at VARCHAR(30) NOT NULL,
-        CONSTRAINT fk_courses_dept FOREIGN KEY (department_id) REFERENCES departments(department_id) ON DELETE SET NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS classes (
-        class_id INT AUTO_INCREMENT PRIMARY KEY,
-        class_name VARCHAR(100) NOT NULL UNIQUE,
-        course_id INT NOT NULL,
-        lecturer_id INT,
-        semester VARCHAR(50),
-        created_at VARCHAR(30) NOT NULL,
-        updated_at VARCHAR(30) NOT NULL,
-        CONSTRAINT fk_classes_course FOREIGN KEY (course_id) REFERENCES courses(course_id) ON DELETE RESTRICT,
-        CONSTRAINT fk_classes_lecturer FOREIGN KEY (lecturer_id) REFERENCES lecturers(lecturer_id) ON DELETE SET NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS enrollments (
-        enrollment_id INT AUTO_INCREMENT PRIMARY KEY,
-        class_id INT NOT NULL,
-        student_id INT NOT NULL,
-        created_at VARCHAR(30) NOT NULL,
-        UNIQUE KEY uq_class_student (class_id, student_id),
-        CONSTRAINT fk_enrollments_class FOREIGN KEY (class_id) REFERENCES classes(class_id) ON DELETE CASCADE,
-        CONSTRAINT fk_enrollments_student FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS schedules (
-        schedule_id INT AUTO_INCREMENT PRIMARY KEY,
-        class_id INT NOT NULL,
-        schedule_date VARCHAR(20) NOT NULL,
-        start_time VARCHAR(10) NOT NULL,
-        end_time VARCHAR(10) NOT NULL,
-        room VARCHAR(50),
-        schedule_type VARCHAR(20) NOT NULL DEFAULT 'regular',
-        status VARCHAR(20) NOT NULL DEFAULT 'scheduled',
-        original_schedule_id INT,
-        cancel_reason TEXT,
-        created_at VARCHAR(30) NOT NULL,
-        updated_at VARCHAR(30) NOT NULL,
-        CONSTRAINT fk_schedules_class FOREIGN KEY (class_id) REFERENCES classes(class_id) ON DELETE CASCADE,
-        CONSTRAINT fk_schedules_original FOREIGN KEY (original_schedule_id) REFERENCES schedules(schedule_id) ON DELETE SET NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    """,
-]
-
-# Schema SQLite tương thích cho môi trường demo / kiểm thử độc lập
-SCHEMA_SQL_SQLITE = """
-CREATE TABLE IF NOT EXISTS departments (
-    department_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    department_name TEXT NOT NULL UNIQUE,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS students (
-    student_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER UNIQUE,
-    full_name TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE,
-    department_id INTEGER REFERENCES departments(department_id),
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS lecturers (
-    lecturer_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER UNIQUE,
-    full_name TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE,
-    department_id INTEGER REFERENCES departments(department_id),
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS courses (
-    course_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    course_name TEXT NOT NULL UNIQUE,
-    department_id INTEGER REFERENCES departments(department_id),
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS classes (
-    class_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    class_name TEXT NOT NULL UNIQUE,
-    course_id INTEGER NOT NULL REFERENCES courses(course_id),
-    lecturer_id INTEGER REFERENCES lecturers(lecturer_id),
-    semester TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS enrollments (
-    enrollment_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    class_id INTEGER NOT NULL REFERENCES classes(class_id),
-    student_id INTEGER NOT NULL REFERENCES students(student_id),
-    created_at TEXT NOT NULL,
-    UNIQUE (class_id, student_id)
-);
-CREATE TABLE IF NOT EXISTS schedules (
-    schedule_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    class_id INTEGER NOT NULL REFERENCES classes(class_id),
-    schedule_date TEXT NOT NULL,
-    start_time TEXT NOT NULL,
-    end_time TEXT NOT NULL,
-    room TEXT,
-    schedule_type TEXT NOT NULL DEFAULT 'regular',
-    status TEXT NOT NULL DEFAULT 'scheduled',
-    original_schedule_id INTEGER REFERENCES schedules(schedule_id),
-    cancel_reason TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-"""
-
-EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+# Tích hợp an toàn với các module của thành viên khác trong nhóm
+def _get_external_module(module_name):
+    import sys
+    if module_name in sys.modules:
+        return sys.modules[module_name]
+    try:
+        import importlib
+        return importlib.import_module(module_name)
+    except Exception:
+        return None
 
 
-def get_db_type():
-    """Xác định loại cơ sở dữ liệu: 'mysql' hoặc 'sqlite'."""
-    if has_app_context():
-        if current_app.config.get("DATABASE_TYPE"):
-            return current_app.config["DATABASE_TYPE"].lower()
-        if current_app.config.get("DB_TYPE"):
-            return current_app.config["DB_TYPE"].lower()
-        if current_app.config.get("MYSQL_HOST") or current_app.config.get("MYSQL_DB"):
-            return "mysql"
-        if current_app.config.get("database_path"):
-            return "sqlite"
-    if os.environ.get("DATABASE_TYPE"):
-        return os.environ["DATABASE_TYPE"].lower()
-    if os.environ.get("DB_TYPE"):
-        return os.environ["DB_TYPE"].lower()
-    if os.environ.get("MYSQL_HOST") or os.environ.get("MYSQL_DB"):
-        return "mysql"
-    return "mysql" if pymysql is not None else "sqlite"
+def get_current_user():
+    user_mod = _get_external_module("app.models.user")
+    if user_mod and hasattr(user_mod, "get_current_user"):
+        return user_mod.get_current_user()
+    return {"user_id": 1, "role": "admin"}
 
 
-def get_connection_db_type(connection):
-    """Xác định loại database từ đối tượng connection."""
-    if pymysql and isinstance(connection, pymysql.connections.Connection):
-        return "mysql"
-    return "sqlite"
+def check_user_permission(user_id, role, resource_id=None):
+    user_mod = _get_external_module("app.models.user")
+    if user_mod and hasattr(user_mod, "check_user_permission"):
+        return user_mod.check_user_permission(user_id, role, resource_id)
+    user = get_current_user()
+    if user and "role" in user:
+        return user["role"] == role
+    return False
 
 
-def get_db_connection():
-    """Lấy kết nối cơ sở dữ liệu MySQL (theo thống nhất nhóm) hoặc SQLite dự phòng."""
-    db_type = get_db_type()
-    if db_type == "mysql" and pymysql is not None:
-        try:
-            cfg = current_app.config if has_app_context() else {}
-            host = cfg.get("MYSQL_HOST", os.environ.get("MYSQL_HOST", "localhost"))
-            user = cfg.get("MYSQL_USER", os.environ.get("MYSQL_USER", "root"))
-            password = cfg.get("MYSQL_PASSWORD", os.environ.get("MYSQL_PASSWORD", ""))
-            db = cfg.get("MYSQL_DB", os.environ.get("MYSQL_DB", "student_attendance"))
-            port = int(cfg.get("MYSQL_PORT", os.environ.get("MYSQL_PORT", 3306)))
-            charset = cfg.get("MYSQL_CHARSET", os.environ.get("MYSQL_CHARSET", "utf8mb4"))
+def create_activity_log(*args, **kwargs):
+    log_mod = _get_external_module("app.models.activity_log")
+    if log_mod and hasattr(log_mod, "create_activity_log"):
+        return log_mod.create_activity_log(*args, **kwargs)
 
-            connection = pymysql.connect(
-                host=host,
-                user=user,
-                password=password,
-                database=db,
-                port=port,
-                charset=charset,
-                cursorclass=pymysql.cursors.DictCursor,
-                autocommit=False,
-            )
-            return connection
-        except Exception:
-            # Fallback sang SQLite khi chưa bật MySQL server
-            return get_sqlite_connection()
-
-    return get_sqlite_connection()
+academic_bp = Blueprint("academic", __name__, url_prefix="/admin")
 
 
-def get_sqlite_connection():
-    """Kết nối SQLite dự phòng cho demo / offline testing."""
-    if has_app_context() and current_app.config.get("SQLITE_DB_PATH"):
-        database_path = current_app.config["SQLITE_DB_PATH"]
-    elif has_app_context() and current_app.config.get("database_path"):
-        database_path = current_app.config["database_path"]
+@academic_bp.route("/")
+@academic_bp.route("")
+def admin_home():
+    return redirect(url_for("academic.student_list_page"))
+
+
+def admin_required(view_function):
+    """Kiểm tra đăng nhập và quyền Admin ở phía server."""
+    @wraps(view_function)
+    def wrapper(*args, **kwargs):
+        user = get_current_user()
+        if user is None:
+            try:
+                return redirect(url_for("auth.login_page"))
+            except Exception:
+                abort(401)
+        if not check_user_permission(user["user_id"], "admin"):
+            abort(403)
+        return view_function(*args, **kwargs)
+    return wrapper
+
+
+def run_admin_action(action_function, success_message, redirect_endpoint, log_action, object_type, **redirect_values):
+    """Gọi hàm nghiệp vụ, báo thành công chỉ sau khi lưu xong, ghi activity log."""
+    user = get_current_user()
+    try:
+        record = action_function()
+    except academic_error as error:
+        flash(str(error), "danger")
+        create_activity_log(user["user_id"], log_action, object_type, None, "failed")
     else:
-        database_path = os.environ.get("SQLITE_DB_PATH", os.environ.get("attendance_database_path", "demo.db"))
-    connection = sqlite3.connect(database_path)
-    connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA foreign_keys = ON")
-    return connection
+        flash(success_message, "success")
+        object_id = record.get(object_type + "_id") if isinstance(record, dict) else None
+        create_activity_log(user["user_id"], log_action, object_type, object_id, "success")
+    return redirect(url_for(redirect_endpoint, **redirect_values))
 
 
-def adapt_sql(sql, db_type):
-    """Chuyển đổi placeholder '?' sang '%s' nếu đang dùng MySQL."""
-    if db_type == "mysql":
-        return sql.replace("?", "%s")
-    return sql
+def department_options():
+    return [{"value": item["department_id"], "label": item["department_name"]} for item in get_department_list()]
 
 
-def init_academic_tables():
-    """Khởi tạo bảng cơ sở dữ liệu (tương thích MySQL và SQLite)."""
-    connection = get_db_connection()
-    db_type = get_connection_db_type(connection)
-    try:
-        if db_type == "mysql":
-            with connection.cursor() as cursor:
-                for statement in SCHEMA_SQL_MYSQL:
-                    cleaned_stmt = statement.strip()
-                    if cleaned_stmt:
-                        cursor.execute(cleaned_stmt)
-            connection.commit()
-        else:
-            connection.executescript(SCHEMA_SQL_SQLITE)
-            connection.commit()
-    finally:
-        connection.close()
-
-
-def now_text():
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-
-def fetch_one(sql, params=()):
-    """Truy vấn 1 bản ghi; trả về dictionary hoặc None."""
-    connection = get_db_connection()
-    db_type = get_connection_db_type(connection)
-    try:
-        adapted_sql = adapt_sql(sql, db_type)
-        if db_type == "mysql":
-            with connection.cursor() as cursor:
-                cursor.execute(adapted_sql, params)
-                row = cursor.fetchone()
-                return dict(row) if row else None
-        else:
-            row = connection.execute(adapted_sql, params).fetchone()
-            return dict(row) if row else None
-    finally:
-        connection.close()
-
-
-def fetch_all(sql, params=()):
-    """Truy vấn danh sách bản ghi; trả về list of dicts."""
-    connection = get_db_connection()
-    db_type = get_connection_db_type(connection)
-    try:
-        adapted_sql = adapt_sql(sql, db_type)
-        if db_type == "mysql":
-            with connection.cursor() as cursor:
-                cursor.execute(adapted_sql, params)
-                rows = cursor.fetchall()
-                return [dict(row) for row in rows]
-        else:
-            rows = connection.execute(adapted_sql, params).fetchall()
-            return [dict(row) for row in rows]
-    finally:
-        connection.close()
-
-
-def run_write(sql, params=()):
-    """Chạy lệnh ghi (INSERT/UPDATE/DELETE); trả về lastrowid. Đổi lỗi sang academic_error."""
-    connection = get_db_connection()
-    db_type = get_connection_db_type(connection)
-    try:
-        adapted_sql = adapt_sql(sql, db_type)
-        if db_type == "mysql":
-            with connection.cursor() as cursor:
-                cursor.execute(adapted_sql, params)
-                connection.commit()
-                return cursor.lastrowid
-        else:
-            cursor = connection.execute(adapted_sql, params)
-            connection.commit()
-            return cursor.lastrowid
-    except Exception as error:
-        try:
-            connection.rollback()
-        except Exception:
-            pass
-        raise academic_error(explain_integrity_error(str(error))) from error
-    finally:
-        connection.close()
-
-
-def explain_integrity_error(message):
-    upper_msg = message.upper()
-    if "UNIQUE" in upper_msg or "1062" in upper_msg or "DUPLICATE ENTRY" in upper_msg:
-        return "Dữ liệu bị trùng với bản ghi đã có (tên, email hoặc tài khoản đã tồn tại)."
-    if "FOREIGN KEY" in upper_msg or "1452" in upper_msg or "1217" in upper_msg or "1451" in upper_msg:
-        return "Dữ liệu liên kết không tồn tại hoặc đang được sử dụng ở bảng khác."
-    return "Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu."
-
-
-def clean_data(data, allowed_fields):
-    """Chỉ giữ các key cho phép; cắt khoảng trắng; chuỗi rỗng thành None."""
-    cleaned = {}
-    for field_name in allowed_fields:
-        if field_name in (data or {}):
-            value = data[field_name]
-            if isinstance(value, str):
-                value = value.strip()
-            cleaned[field_name] = value if value != "" else None
-    return cleaned
-
-
-def check_required(data, required_fields, labels=None):
-    labels = labels or {}
-    missing = [labels.get(name, name) for name in required_fields if data.get(name) is None]
-    if missing:
-        raise academic_error("Thiếu dữ liệu bắt buộc: " + ", ".join(missing) + ".")
-
-
-def check_email(email):
-    if email is not None and not EMAIL_PATTERN.match(email):
-        raise academic_error("Email không hợp lệ.")
-
-
-def to_int_or_none(data, field_names):
-    for field_name in field_names:
-        value = data.get(field_name)
-        if value is None:
-            continue
-        try:
-            data[field_name] = int(value)
-        except (TypeError, ValueError):
-            raise academic_error("Giá trị của " + field_name + " phải là số nguyên.")
-
-
-def insert_record(table, data, allowed_fields, required_fields, labels=None, has_updated_at=True):
-    data = clean_data(data, allowed_fields)
-    check_required(data, required_fields, labels)
-    data["created_at"] = now_text()
-    if has_updated_at:
-        data["updated_at"] = data["created_at"]
-    column_names = ", ".join(data.keys())
-    placeholders = ", ".join("?" for _ in data)
-    return run_write(
-        "INSERT INTO " + table + " (" + column_names + ") VALUES (" + placeholders + ")",
-        tuple(data.values()),
+def render_entity_page(title, columns, fields, rows, id_key, create_endpoint, update_endpoint, delete_endpoint=None):
+    return render_template(
+        "admin/academic/entity_list.html", title=title, columns=columns, fields=fields,
+        rows=rows, id_key=id_key, create_endpoint=create_endpoint, update_endpoint=update_endpoint,
+        delete_endpoint=delete_endpoint,
     )
 
 
-def update_record(table, key_column, key_value, data, allowed_fields, required_fields=(), labels=None):
-    data = clean_data(data, allowed_fields)
-    for field_name in required_fields:
-        if field_name in data and data[field_name] is None:
-            raise academic_error("Thiếu dữ liệu bắt buộc: " + (labels or {}).get(field_name, field_name) + ".")
-    if not data:
-        raise academic_error("Không có dữ liệu để cập nhật.")
-    data["updated_at"] = now_text()
-    assignments = ", ".join(name + " = ?" for name in data)
-    run_write(
-        "UPDATE " + table + " SET " + assignments + " WHERE " + key_column + " = ?",
-        tuple(data.values()) + (key_value,),
-    )
+# ---------- Student ----------
+@academic_bp.route("/students")
+@admin_required
+def student_list_page():
+    fields = [
+        {"name": "full_name", "label": "Họ tên", "type": "text", "required": True},
+        {"name": "email", "label": "Email", "type": "email", "required": True},
+        {"name": "user_id", "label": "Mã tài khoản (user_id)", "type": "number"},
+        {"name": "department_id", "label": "Khoa/phòng ban", "type": "select", "options": department_options()},
+    ]
+    columns = [("student_id", "Mã SV"), ("full_name", "Họ tên"), ("email", "Email"),
+               ("department_name", "Khoa/phòng ban")]
+    return render_entity_page("Sinh viên", columns, fields, get_student_list(), "student_id",
+                              "academic.student_create_action", "academic.student_update_action",
+                              "academic.student_delete_action")
+
+
+@academic_bp.route("/students/create", methods=["POST"])
+@admin_required
+def student_create_action():
+    form_data = request.form.to_dict()
+    return run_admin_action(lambda: create_student(form_data), "Đã thêm sinh viên.",
+                            "academic.student_list_page", "create_student", "student")
+
+
+@academic_bp.route("/students/<int:student_id>/update", methods=["POST"])
+@admin_required
+def student_update_action(student_id):
+    form_data = request.form.to_dict()
+    return run_admin_action(lambda: update_student(student_id, form_data), "Đã cập nhật sinh viên.",
+                            "academic.student_list_page", "update_student", "student")
+
+
+@academic_bp.route("/students/<int:student_id>/delete", methods=["POST"])
+@admin_required
+def student_delete_action(student_id):
+    return run_admin_action(lambda: delete_student(student_id), "Đã xóa sinh viên.",
+                            "academic.student_list_page", "delete_student", "student")
+
+
+# ---------- Lecturer ----------
+@academic_bp.route("/lecturers")
+@admin_required
+def lecturer_list_page():
+    fields = [
+        {"name": "full_name", "label": "Họ tên", "type": "text", "required": True},
+        {"name": "email", "label": "Email", "type": "email", "required": True},
+        {"name": "user_id", "label": "Mã tài khoản (user_id)", "type": "number"},
+        {"name": "department_id", "label": "Khoa/phòng ban", "type": "select", "options": department_options()},
+    ]
+    columns = [("lecturer_id", "Mã GV"), ("full_name", "Họ tên"), ("email", "Email"),
+               ("department_name", "Khoa/phòng ban")]
+    return render_entity_page("Giảng viên", columns, fields, get_lecturer_list(), "lecturer_id",
+                              "academic.lecturer_create_action", "academic.lecturer_update_action",
+                              "academic.lecturer_delete_action")
+
+
+@academic_bp.route("/lecturers/create", methods=["POST"])
+@admin_required
+def lecturer_create_action():
+    form_data = request.form.to_dict()
+    return run_admin_action(lambda: create_lecturer(form_data), "Đã thêm giảng viên.",
+                            "academic.lecturer_list_page", "create_lecturer", "lecturer")
+
+
+@academic_bp.route("/lecturers/<int:lecturer_id>/update", methods=["POST"])
+@admin_required
+def lecturer_update_action(lecturer_id):
+    form_data = request.form.to_dict()
+    return run_admin_action(lambda: update_lecturer(lecturer_id, form_data), "Đã cập nhật giảng viên.",
+                            "academic.lecturer_list_page", "update_lecturer", "lecturer")
+
+
+@academic_bp.route("/lecturers/<int:lecturer_id>/delete", methods=["POST"])
+@admin_required
+def lecturer_delete_action(lecturer_id):
+    return run_admin_action(lambda: delete_lecturer(lecturer_id), "Đã xóa giảng viên.",
+                            "academic.lecturer_list_page", "delete_lecturer", "lecturer")
 
 
 # ---------- Khoa/phòng ban ----------
-DEPARTMENT_FIELDS = ["department_name"]
+@academic_bp.route("/departments")
+@admin_required
+def department_list_page():
+    fields = [{"name": "department_name", "label": "Tên khoa/phòng ban", "type": "text", "required": True}]
+    columns = [("department_id", "Mã"), ("department_name", "Tên khoa/phòng ban")]
+    return render_entity_page("Khoa/phòng ban", columns, fields, get_department_list(), "department_id",
+                              "academic.department_create_action", "academic.department_update_action",
+                              "academic.department_delete_action")
 
 
-def get_department_by_id(department_id):
-    return fetch_one("SELECT * FROM departments WHERE department_id = ?", (department_id,))
+@academic_bp.route("/departments/create", methods=["POST"])
+@admin_required
+def department_create_action():
+    form_data = request.form.to_dict()
+    return run_admin_action(lambda: create_department(form_data), "Đã thêm khoa/phòng ban.",
+                            "academic.department_list_page", "create_department", "department")
 
 
-def get_department_list():
-    return fetch_all("SELECT * FROM departments ORDER BY department_name")
+@academic_bp.route("/departments/<int:department_id>/update", methods=["POST"])
+@admin_required
+def department_update_action(department_id):
+    form_data = request.form.to_dict()
+    return run_admin_action(lambda: update_department(department_id, form_data), "Đã cập nhật khoa/phòng ban.",
+                            "academic.department_list_page", "update_department", "department")
 
 
-def create_department(department_data):
-    department_id = insert_record(
-        "departments", department_data, DEPARTMENT_FIELDS, ["department_name"],
-        {"department_name": "tên khoa/phòng ban"},
-    )
-    return get_department_by_id(department_id)
-
-
-def update_department(department_id, department_data):
-    if get_department_by_id(department_id) is None:
-        raise academic_error("Không tìm thấy khoa/phòng ban.")
-    update_record("departments", "department_id", department_id, department_data,
-                  DEPARTMENT_FIELDS, ["department_name"], {"department_name": "tên khoa/phòng ban"})
-    return get_department_by_id(department_id)
-
-
-def delete_department(department_id):
-    """Xóa khoa/phòng ban (kiểm tra an toàn dữ liệu liên kết)."""
-    if get_department_by_id(department_id) is None:
-        raise academic_error("Không tìm thấy khoa/phòng ban.")
-    if fetch_one("SELECT 1 FROM students WHERE department_id = ?", (department_id,)):
-        raise academic_error("Không thể xóa: Khoa/phòng ban đang có sinh viên trực thuộc.")
-    if fetch_one("SELECT 1 FROM lecturers WHERE department_id = ?", (department_id,)):
-        raise academic_error("Không thể xóa: Khoa/phòng ban đang có giảng viên trực thuộc.")
-    if fetch_one("SELECT 1 FROM courses WHERE department_id = ?", (department_id,)):
-        raise academic_error("Không thể xóa: Khoa/phòng ban đang có môn học trực thuộc.")
-    run_write("DELETE FROM departments WHERE department_id = ?", (department_id,))
-    return True
+@academic_bp.route("/departments/<int:department_id>/delete", methods=["POST"])
+@admin_required
+def department_delete_action(department_id):
+    return run_admin_action(lambda: delete_department(department_id), "Đã xóa khoa/phòng ban.",
+                            "academic.department_list_page", "delete_department", "department")
 
 
 # ---------- Môn học ----------
-COURSE_FIELDS = ["course_name", "department_id"]
-COURSE_SELECT = """
-    SELECT courses.*, departments.department_name
-    FROM courses LEFT JOIN departments ON departments.department_id = courses.department_id
-"""
+@academic_bp.route("/courses")
+@admin_required
+def course_list_page():
+    fields = [
+        {"name": "course_name", "label": "Tên môn học", "type": "text", "required": True},
+        {"name": "department_id", "label": "Khoa/phòng ban", "type": "select", "options": department_options()},
+    ]
+    columns = [("course_id", "Mã"), ("course_name", "Tên môn học"), ("department_name", "Khoa/phòng ban")]
+    return render_entity_page("Môn học", columns, fields, get_course_list(), "course_id",
+                              "academic.course_create_action", "academic.course_update_action",
+                              "academic.course_delete_action")
 
 
-def get_course_by_id(course_id):
-    return fetch_one(COURSE_SELECT + " WHERE courses.course_id = ?", (course_id,))
+@academic_bp.route("/courses/create", methods=["POST"])
+@admin_required
+def course_create_action():
+    form_data = request.form.to_dict()
+    return run_admin_action(lambda: create_course(form_data), "Đã thêm môn học.",
+                            "academic.course_list_page", "create_course", "course")
 
 
-def get_course_list(filters=None):
-    filters = filters or {}
-    sql, params = COURSE_SELECT + " WHERE 1 = 1", []
-    if filters.get("department_id"):
-        sql += " AND courses.department_id = ?"
-        params.append(filters["department_id"])
-    return fetch_all(sql + " ORDER BY courses.course_name", tuple(params))
+@academic_bp.route("/courses/<int:course_id>/update", methods=["POST"])
+@admin_required
+def course_update_action(course_id):
+    form_data = request.form.to_dict()
+    return run_admin_action(lambda: update_course(course_id, form_data), "Đã cập nhật môn học.",
+                            "academic.course_list_page", "update_course", "course")
 
 
-def create_course(course_data):
-    course_data = clean_data(course_data, COURSE_FIELDS)
-    to_int_or_none(course_data, ["department_id"])
-    course_id = insert_record("courses", course_data, COURSE_FIELDS, ["course_name"],
-                              {"course_name": "tên môn học"})
-    return get_course_by_id(course_id)
-
-
-def update_course(course_id, course_data):
-    if get_course_by_id(course_id) is None:
-        raise academic_error("Không tìm thấy môn học.")
-    course_data = clean_data(course_data, COURSE_FIELDS)
-    to_int_or_none(course_data, ["department_id"])
-    update_record("courses", "course_id", course_id, course_data, COURSE_FIELDS,
-                  ["course_name"], {"course_name": "tên môn học"})
-    return get_course_by_id(course_id)
-
-
-def delete_course(course_id):
-    """Xóa môn học (kiểm tra an toàn lớp học phần liên kết)."""
-    if get_course_by_id(course_id) is None:
-        raise academic_error("Không tìm thấy môn học.")
-    if fetch_one("SELECT 1 FROM classes WHERE course_id = ?", (course_id,)):
-        raise academic_error("Không thể xóa: Môn học đang có lớp học phần trực thuộc.")
-    run_write("DELETE FROM courses WHERE course_id = ?", (course_id,))
-    return True
+@academic_bp.route("/courses/<int:course_id>/delete", methods=["POST"])
+@admin_required
+def course_delete_action(course_id):
+    return run_admin_action(lambda: delete_course(course_id), "Đã xóa môn học.",
+                            "academic.course_list_page", "delete_course", "course")
 
 
 # ---------- Lớp học phần ----------
-CLASS_FIELDS = ["class_name", "course_id", "lecturer_id", "semester"]
-CLASS_LABELS = {"class_name": "tên lớp học phần", "course_id": "môn học"}
-CLASS_SELECT = """
-    SELECT classes.*, courses.course_name, lecturers.full_name AS lecturer_name,
-           (SELECT COUNT(*) FROM enrollments WHERE enrollments.class_id = classes.class_id) AS student_count
-    FROM classes
-    JOIN courses ON courses.course_id = classes.course_id
-    LEFT JOIN lecturers ON lecturers.lecturer_id = classes.lecturer_id
-"""
-
-
-def get_class_by_id(class_id):
-    return fetch_one(CLASS_SELECT + " WHERE classes.class_id = ?", (class_id,))
-
-
-def get_class_list(filters=None):
-    """filters: lecturer_id, course_id, semester (đều không bắt buộc)."""
-    filters = filters or {}
-    sql, params = CLASS_SELECT + " WHERE 1 = 1", []
-    for field_name in ("lecturer_id", "course_id", "semester"):
-        if filters.get(field_name):
-            sql += " AND classes." + field_name + " = ?"
-            params.append(filters[field_name])
-    return fetch_all(sql + " ORDER BY classes.class_name", tuple(params))
-
-
-def create_class(class_data):
-    class_data = clean_data(class_data, CLASS_FIELDS)
-    to_int_or_none(class_data, ["course_id", "lecturer_id"])
-    class_id = insert_record("classes", class_data, CLASS_FIELDS, ["class_name", "course_id"], CLASS_LABELS)
-    return get_class_by_id(class_id)
-
-
-def update_class(class_id, class_data):
-    if get_class_by_id(class_id) is None:
-        raise academic_error("Không tìm thấy lớp học phần.")
-    class_data = clean_data(class_data, CLASS_FIELDS)
-    to_int_or_none(class_data, ["course_id", "lecturer_id"])
-    update_record("classes", "class_id", class_id, class_data, CLASS_FIELDS,
-                  ["class_name", "course_id"], CLASS_LABELS)
-    return get_class_by_id(class_id)
-
-
-def delete_class(class_id):
-    """Xóa lớp học phần (kiểm tra sinh viên đăng ký và lịch học)."""
-    if get_class_by_id(class_id) is None:
-        raise academic_error("Không tìm thấy lớp học phần.")
-    if fetch_one("SELECT 1 FROM enrollments WHERE class_id = ?", (class_id,)):
-        raise academic_error("Không thể xóa: Lớp học phần đang có sinh viên đăng ký.")
-    if fetch_one("SELECT 1 FROM schedules WHERE class_id = ?", (class_id,)):
-        raise academic_error("Không thể xóa: Lớp học phần đã có lịch học.")
-    run_write("DELETE FROM classes WHERE class_id = ?", (class_id,))
-    return True
-
-
-# ---------- Đăng ký học ----------
-def get_enrollment_list(class_id):
-    """Danh sách sinh viên đăng ký lớp; list rỗng nếu chưa có ai."""
-    return fetch_all(
-        """
-        SELECT students.student_id, students.user_id, students.full_name, students.email,
-               enrollments.enrollment_id
-        FROM enrollments JOIN students ON students.student_id = enrollments.student_id
-        WHERE enrollments.class_id = ?
-        ORDER BY students.full_name
-        """,
-        (class_id,),
+@academic_bp.route("/classes")
+@admin_required
+def class_list_page():
+    fields = [
+        {"name": "class_name", "label": "Tên lớp học phần", "type": "text", "required": True},
+        {"name": "course_id", "label": "Môn học", "type": "select", "required": True,
+         "options": [{"value": item["course_id"], "label": item["course_name"]} for item in get_course_list()]},
+        {"name": "lecturer_id", "label": "Giảng viên phụ trách", "type": "select",
+         "options": [{"value": item["lecturer_id"], "label": item["full_name"]} for item in get_lecturer_list()]},
+        {"name": "semester", "label": "Học kỳ", "type": "text"},
+    ]
+    columns = [("class_id", "Mã"), ("class_name", "Lớp học phần"), ("course_name", "Môn học"),
+               ("lecturer_name", "Giảng viên"), ("semester", "Học kỳ"), ("student_count", "Sĩ số")]
+    return render_template(
+        "admin/academic/entity_list.html", title="Lớp học phần", columns=columns, fields=fields,
+        rows=get_class_list(), id_key="class_id", create_endpoint="academic.class_create_action",
+        update_endpoint="academic.class_update_action", delete_endpoint="academic.class_delete_action",
+        enrollment_endpoint="academic.enrollment_list_page",
     )
 
 
-def add_student_to_class(class_id, student_id):
-    if get_class_by_id(class_id) is None:
-        raise academic_error("Không tìm thấy lớp học phần.")
-    if fetch_one("SELECT 1 FROM students WHERE student_id = ?", (student_id,)) is None:
-        raise academic_error("Không tìm thấy sinh viên.")
-    if fetch_one("SELECT 1 FROM enrollments WHERE class_id = ? AND student_id = ?", (class_id, student_id)):
-        raise academic_error("Sinh viên đã có trong lớp học phần này.")
-    run_write("INSERT INTO enrollments (class_id, student_id, created_at) VALUES (?, ?, ?)",
-              (class_id, student_id, now_text()))
-    return True
+@academic_bp.route("/classes/create", methods=["POST"])
+@admin_required
+def class_create_action():
+    form_data = request.form.to_dict()
+    return run_admin_action(lambda: create_class(form_data), "Đã thêm lớp học phần.",
+                            "academic.class_list_page", "create_class", "class")
 
 
-def remove_student_from_class(class_id, student_id):
-    if fetch_one("SELECT 1 FROM enrollments WHERE class_id = ? AND student_id = ?", (class_id, student_id)) is None:
-        raise academic_error("Sinh viên không có trong lớp học phần này.")
-    run_write("DELETE FROM enrollments WHERE class_id = ? AND student_id = ?", (class_id, student_id))
-    return True
+@academic_bp.route("/classes/<int:class_id>/update", methods=["POST"])
+@admin_required
+def class_update_action(class_id):
+    form_data = request.form.to_dict()
+    return run_admin_action(lambda: update_class(class_id, form_data), "Đã cập nhật lớp học phần.",
+                            "academic.class_list_page", "update_class", "class")
+
+
+@academic_bp.route("/classes/<int:class_id>/delete", methods=["POST"])
+@admin_required
+def class_delete_action(class_id):
+    return run_admin_action(lambda: delete_class(class_id), "Đã xóa lớp học phần.",
+                            "academic.class_list_page", "delete_class", "class")
+
+
+# ---------- Đăng ký học ----------
+@academic_bp.route("/classes/<int:class_id>/enrollments")
+@admin_required
+def enrollment_list_page(class_id):
+    class_record = get_class_by_id(class_id)
+    if class_record is None:
+        abort(404)
+    enrolled_ids = {item["student_id"] for item in get_enrollment_list(class_id)}
+    available_students = [item for item in get_student_list() if item["student_id"] not in enrolled_ids]
+    return render_template(
+        "admin/academic/enrollments.html", class_record=class_record,
+        enrollments=get_enrollment_list(class_id), available_students=available_students,
+    )
+
+
+@academic_bp.route("/classes/<int:class_id>/enrollments/update", methods=["POST"])
+@admin_required
+def enrollment_update_action(class_id):
+    """Form gửi enrollment_action = add | remove và student_id."""
+    enrollment_action = request.form.get("enrollment_action")
+    try:
+        student_id = int(request.form.get("student_id", ""))
+    except ValueError:
+        flash("Chưa chọn sinh viên.", "danger")
+        return redirect(url_for("academic.enrollment_list_page", class_id=class_id))
+    if enrollment_action == "add":
+        def action_function():
+            add_student_to_class(class_id, student_id)
+            return {}
+        message, log_action = "Đã thêm sinh viên vào lớp.", "add_student_to_class"
+    elif enrollment_action == "remove":
+        def action_function():
+            remove_student_from_class(class_id, student_id)
+            return {}
+        message, log_action = "Đã xóa sinh viên khỏi lớp.", "remove_student_from_class"
+    else:
+        abort(400)
+    return run_admin_action(action_function, message, "academic.enrollment_list_page",
+                            log_action, "enrollment", class_id=class_id)
