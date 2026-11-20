@@ -1,12 +1,19 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Attendance System</title>
-</head>
-<body>
-    <h1>Student Attendance System</h1>
-    <p>Welcome to our system!</p>
-</body>
-</html>
+{% extends "base.html" %}
+{% block title %}Trang chủ - Student Attendance System{% endblock %}
+{% block content %}
+<div class="row justify-content-center py-5">
+  <div class="col-lg-8">
+    <div class="surface-card p-4 p-md-5 text-center">
+      <h1 class="h3 fw-bold mb-3">Hệ thống Điểm danh Sinh viên</h1>
+      <p class="text-muted mb-4">
+        Nền tảng quản lý điểm danh, lịch học, thông báo và phản hồi kết quả dành cho Quản trị viên, Giảng viên và Sinh viên.
+        Tài khoản được cấp bởi Quản trị viên (không hỗ trợ tự đăng ký).
+      </p>
+      <div class="d-flex flex-wrap justify-content-center gap-2">
+        <a href="{{ url_for('auth.login_page') }}" class="btn btn-primary btn-lg px-4">Đăng nhập hệ thống</a>
+        <a href="{{ url_for('auth.forgot_password_page') }}" class="btn btn-outline-secondary btn-lg px-4">Quên mật khẩu</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
