@@ -10,23 +10,34 @@ from app.models.student import get_student_by_id
 from app.routes.academic import admin_required
 
 # Tích hợp an toàn với các module của thành viên khác trong nhóm
-try:
-    from app.models.activity_log import create_activity_log
-except ImportError:
-    def create_activity_log(*args, **kwargs):
-        pass
+def _get_external_module(module_name):
+    import sys
+    if module_name in sys.modules:
+        return sys.modules[module_name]
+    try:
+        import importlib
+        return importlib.import_module(module_name)
+    except Exception:
+        return None
 
-try:
-    from app.models.notification import create_notification
-except ImportError:
-    def create_notification(*args, **kwargs):
-        pass
 
-try:
-    from app.models.user import get_current_user
-except ImportError:
-    def get_current_user():
-        return {"user_id": 1, "role": "admin"}
+def get_current_user():
+    user_mod = _get_external_module("app.models.user")
+    if user_mod and hasattr(user_mod, "get_current_user"):
+        return user_mod.get_current_user()
+    return {"user_id": 1, "role": "admin"}
+
+
+def create_activity_log(*args, **kwargs):
+    log_mod = _get_external_module("app.models.activity_log")
+    if log_mod and hasattr(log_mod, "create_activity_log"):
+        return log_mod.create_activity_log(*args, **kwargs)
+
+
+def create_notification(*args, **kwargs):
+    notif_mod = _get_external_module("app.models.notification")
+    if notif_mod and hasattr(notif_mod, "create_notification"):
+        return notif_mod.create_notification(*args, **kwargs)
 
 logger = logging.getLogger(__name__)
 

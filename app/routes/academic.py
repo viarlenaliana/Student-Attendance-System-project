@@ -17,19 +17,38 @@ from app.models.lecturer import create_lecturer, delete_lecturer, get_lecturer_l
 from app.models.student import create_student, delete_student, get_student_list, update_student
 
 # Tích hợp an toàn với các module của thành viên khác trong nhóm
-try:
-    from app.models.activity_log import create_activity_log
-except ImportError:
-    def create_activity_log(*args, **kwargs):
-        pass
+def _get_external_module(module_name):
+    import sys
+    if module_name in sys.modules:
+        return sys.modules[module_name]
+    try:
+        import importlib
+        return importlib.import_module(module_name)
+    except Exception:
+        return None
 
-try:
-    from app.models.user import check_user_permission, get_current_user
-except ImportError:
-    def get_current_user():
-        return {"user_id": 1, "role": "admin"}
-    def check_user_permission(user_id, role, resource_id=None):
-        return True
+
+def get_current_user():
+    user_mod = _get_external_module("app.models.user")
+    if user_mod and hasattr(user_mod, "get_current_user"):
+        return user_mod.get_current_user()
+    return {"user_id": 1, "role": "admin"}
+
+
+def check_user_permission(user_id, role, resource_id=None):
+    user_mod = _get_external_module("app.models.user")
+    if user_mod and hasattr(user_mod, "check_user_permission"):
+        return user_mod.check_user_permission(user_id, role, resource_id)
+    user = get_current_user()
+    if user and "role" in user:
+        return user["role"] == role
+    return False
+
+
+def create_activity_log(*args, **kwargs):
+    log_mod = _get_external_module("app.models.activity_log")
+    if log_mod and hasattr(log_mod, "create_activity_log"):
+        return log_mod.create_activity_log(*args, **kwargs)
 
 academic_bp = Blueprint("academic", __name__, url_prefix="/admin")
 
@@ -46,7 +65,10 @@ def admin_required(view_function):
     def wrapper(*args, **kwargs):
         user = get_current_user()
         if user is None:
-            return redirect(url_for("auth.login_page"))
+            try:
+                return redirect(url_for("auth.login_page"))
+            except Exception:
+                abort(401)
         if not check_user_permission(user["user_id"], "admin"):
             abort(403)
         return view_function(*args, **kwargs)
