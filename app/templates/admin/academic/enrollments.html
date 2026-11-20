@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+  <a href="{{ url_for('academic.class_list_page') }}" class="d-inline-block mb-2">Quay lại lớp học phần</a>
+  <h1 class="h4">Danh sách sinh viên: {{ class_record.class_name }}</h1>
+  <p class="text-muted">Môn học: {{ class_record.course_name }} · Giảng viên: {{ class_record.lecturer_name or 'Chưa phân công' }}</p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }}" role="alert">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="post" action="{{ url_for('academic.enrollment_update_action', class_id=class_record.class_id) }}" class="row g-2 mb-4">
+    <input type="hidden" name="enrollment_action" value="add">
+    <div class="col-sm-8">
+      <label class="form-label" for="student_id">Thêm sinh viên vào lớp</label>
+      <select class="form-select" id="student_id" name="student_id" required>
+        <option value="">-- Chọn sinh viên --</option>
+        {% for student in available_students %}
+        <option value="{{ student.student_id }}">{{ student.full_name }} ({{ student.email }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-sm-4 d-flex align-items-end">
+      <button type="submit" class="btn btn-primary">Thêm vào lớp</button>
+    </div>
+  </form>
+
+  {% if enrollments %}
+  <div class="table-responsive">
+    <table class="table align-middle" id="enrollment_list">
+      <thead><tr><th>Mã SV</th><th>Họ tên</th><th>Email</th><th></th></tr></thead>
+      <tbody>
+        {% for item in enrollments %}
+        <tr>
+          <td>{{ item.student_id }}</td><td>{{ item.full_name }}</td><td>{{ item.email }}</td>
+          <td class="text-end">
+            <form method="post" action="{{ url_for('academic.enrollment_update_action', class_id=class_record.class_id) }}"
+                  onsubmit="return confirm('Xóa {{ item.full_name | e }} khỏi lớp này?');">
+              <input type="hidden" name="enrollment_action" value="remove">
+              <input type="hidden" name="student_id" value="{{ item.student_id }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Xóa khỏi lớp</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted">Lớp chưa có sinh viên. Chọn sinh viên ở trên để thêm.</p>
+  {% endif %}
+</div>
+{% endblock %}
