@@ -1,1 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Student Attendance</title>
+</head>
+<body>
 
+    <h1>Attendance</h1>
+
+    <p>Session ID: <span id="session_id"></span></p>
+    <p>Method: <span id="method"></span></p>
+    <p>Status: <span id="status"></span></p>
+
+    <div id="attendance-form"></div>
+
+    <script>
+        const sessionId = new URLSearchParams(
+            window.location.search
+        ).get("session_id");
+
+        async function loadSession() {
+            const response = await fetch(
+                `/attendance-sessions/${sessionId}`
+            );
+
+            const session = await response.json();
+
+            document.getElementById("session_id").textContent =
+                session.session_id;
+
+            document.getElementById("method").textContent =
+                session.method;
+
+            document.getElementById("status").textContent =
+                session.status;
+
+            renderAttendanceForm(session);
+        }
+
+        function renderAttendanceForm(session) {
+            const container =
+                document.getElementById("attendance-form");
+
+            container.innerHTML = "";
+
+            if (session.status !== "Open") {
+                container.textContent =
+                    "Attendance session is not open.";
+                return;
+            }
+
+            if (session.method === "Password") {
+                container.innerHTML = `
+                    <input id="password"
+                           type="password"
+                           placeholder="Attendance password">
+                    <button onclick="submitPassword()">
+                        Submit
+                    </button>
+                `;
+            }
+
+            if (session.method === "QR code") {
+                container.textContent =
+                    "Please scan the attendance QR code.";
+            }
+
+            if (session.method ===
+                "QR code combined with password") {
+                container.innerHTML = `
+                    <p>Please scan the QR code first.</p>
+                    <input id="password"
+                           type="password"
+                           placeholder="Attendance password">
+                    <button onclick="submitPassword()">
+                        Submit
+                    </button>
+                `;
+            }
+
+            if (session.method === "Manual attendance") {
+                container.textContent =
+                    "Your lecturer will record attendance manually.";
+            }
+        }
+
+        async function submitPassword() {
+            const password =
+                document.getElementById("password").value;
+
+            const response = await fetch(
+                `/attendance-sessions/${sessionId}/verify-password`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({password})
+                }
+            );
+
+            const result = await response.json();
+
+            alert(result.valid
+                ? "Password valid"
+                : "Password invalid");
+        }
+
+        loadSession();
+    </script>
+
+</body>
+</html>
