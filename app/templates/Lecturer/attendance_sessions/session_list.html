@@ -1,1 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Attendance Sessions</title>
+</head>
+<body>
 
+    <h1>Attendance Session Management</h1>
+
+    <h2>Create Attendance Session</h2>
+
+    <form id="create-session-form">
+
+        <label>Schedule ID:</label>
+        <input type="text" id="schedule_id" required>
+
+        <label>Lecturer ID:</label>
+        <input type="text" id="lecturer_id" required>
+
+        <label>Attendance Method:</label>
+        <select id="method">
+            <option value="QR code">QR code</option>
+            <option value="Password">Password</option>
+            <option value="QR code combined with password">
+                QR code combined with password
+            </option>
+            <option value="Manual attendance">
+                Manual attendance
+            </option>
+        </select>
+
+        <button type="submit">Create Session</button>
+
+    </form>
+
+    <h2>Session List</h2>
+
+    <button onclick="loadSessions()">Refresh List</button>
+
+    <div id="session-list"></div>
+
+    <script>
+        async function loadSessions() {
+            const response = await fetch("/attendance-sessions/");
+            const sessions = await response.json();
+
+            const container = document.getElementById("session-list");
+            container.innerHTML = "";
+
+            sessions.forEach(session => {
+                const div = document.createElement("div");
+
+                const title = document.createElement("h3");
+                title.textContent = "Session " + session.session_id;
+
+                const details = document.createElement("p");
+                details.textContent =
+                    "Method: " + session.method +
+                    " | Status: " + session.status;
+
+                div.appendChild(title);
+                div.appendChild(details);
+
+                container.appendChild(div);
+            });
+        }
+
+        document.getElementById("create-session-form")
+            .addEventListener("submit", async function(event) {
+
+                event.preventDefault();
+
+                const data = {
+                    schedule_id:
+                        document.getElementById("schedule_id").value,
+                    lecturer_id:
+                        document.getElementById("lecturer_id").value,
+                    method:
+                        document.getElementById("method").value
+                };
+
+                const response = await fetch(
+                    "/attendance-sessions/create",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(data)
+                    }
+                );
+
+                const result = await response.json();
+
+                alert(result.error || "Session created");
+
+                loadSessions();
+            });
+
+        loadSessions();
+    </script>
+
+</body>
+</html>
