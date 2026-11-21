@@ -1,114 +1,240 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Student Attendance</title>
+
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+        }
+
+        button, input {
+            padding: 12px;
+            margin: 5px;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #reader {
+            width: 100%;
+        }
+
+        #message {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+    </style>
 </head>
+
 <body>
 
-    <h1>Attendance</h1>
+<div class="container">
 
-    <p>Session ID: <span id="session_id"></span></p>
-    <p>Method: <span id="method"></span></p>
-    <p>Status: <span id="status"></span></p>
+    <div class="card">
+        <h1>Điểm danh</h1>
 
-    <div id="attendance-form"></div>
+        <p>Session ID: {{ session.session_id }}</p>
+        <p>Phương thức: {{ method }}</p>
+        <p>Trạng thái: {{ session.status }}</p>
+    </div>
 
-    <script>
-        const sessionId = new URLSearchParams(
-            window.location.search
-        ).get("session_id");
+    <div class="card" id="qr_section">
+        <h2>Quét QR Code</h2>
 
-        async function loadSession() {
-            const response = await fetch(
-                `/attendance-sessions/${sessionId}`
-            );
+        <div id="reader"></div>
 
-            const session = await response.json();
+        <button onclick="startScanner()">Bắt đầu quét</button>
+        <button onclick="stopScanner()">Dừng quét</button>
+    </div>
 
-            document.getElementById("session_id").textContent =
-                session.session_id;
+    <div class="card" id="password_section">
+        <h2>Nhập mật khẩu điểm danh</h2>
 
-            document.getElementById("method").textContent =
-                session.method;
+        <input
+            type="password"
+            id="password"
+            placeholder="Nhập mật khẩu">
 
-            document.getElementById("status").textContent =
-                session.status;
+        <button onclick="submitPassword()">Xác nhận</button>
+    </div>
 
-            renderAttendanceForm(session);
+    <div id="message"></div>
+
+</div>
+
+<script>
+    const session_id = {{ session.session_id }};
+    const method = {{ method | tojson }};
+    const base_url = "/attendance-sessions";
+
+    let scanner = null;
+    let qr_verified = false;
+
+    const qr_section = document.getElementById("qr_section");
+    const password_section = document.getElementById("password_section");
+    const message = document.getElementById("message");
+
+    function setupForm() {
+        qr_section.style.display = "none";
+        password_section.style.display = "none";
+
+        if (method === "QR code") {
+            qr_section.style.display = "block";
         }
 
-        function renderAttendanceForm(session) {
-            const container =
-                document.getElementById("attendance-form");
-
-            container.innerHTML = "";
-
-            if (session.status !== "Open") {
-                container.textContent =
-                    "Attendance session is not open.";
-                return;
-            }
-
-            if (session.method === "Password") {
-                container.innerHTML = `
-                    <input id="password"
-                           type="password"
-                           placeholder="Attendance password">
-                    <button onclick="submitPassword()">
-                        Submit
-                    </button>
-                `;
-            }
-
-            if (session.method === "QR code") {
-                container.textContent =
-                    "Please scan the attendance QR code.";
-            }
-
-            if (session.method ===
-                "QR code combined with password") {
-                container.innerHTML = `
-                    <p>Please scan the QR code first.</p>
-                    <input id="password"
-                           type="password"
-                           placeholder="Attendance password">
-                    <button onclick="submitPassword()">
-                        Submit
-                    </button>
-                `;
-            }
-
-            if (session.method === "Manual attendance") {
-                container.textContent =
-                    "Your lecturer will record attendance manually.";
-            }
+        if (method === "Password") {
+            password_section.style.display = "block";
         }
 
-        async function submitPassword() {
-            const password =
-                document.getElementById("password").value;
+        if (method === "QR code combined with password") {
+            qr_section.style.display = "block";
+            password_section.style.display = "block";
+        }
 
-            const response = await fetch(
-                `/attendance-sessions/${sessionId}/verify-password`,
+        if (method === "Manual attendance") {
+            message.innerText =
+                "Phương thức này được giảng viên ghi nhận thủ công.";
+        }
+    }
+
+    async function startScanner() {
+        if (scanner) {
+            return;
+        }
+
+        scanner = new Html5Qrcode("reader");
+
+        try {
+            await scanner.start(
+                { facingMode: "environment" },
                 {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({password})
-                }
+                    fps: 10,
+                    qrbox: 250
+                },
+                onScanSuccess,
+                function() {}
             );
 
-            const result = await response.json();
+        } catch (error) {
+            message.innerText =
+                "Không thể mở camera. Vui lòng cấp quyền camera.";
+        }
+    }
 
-            alert(result.valid
-                ? "Password valid"
-                : "Password invalid");
+    async function stopScanner() {
+        if (!scanner) {
+            return;
         }
 
-        loadSession();
-    </script>
+        try {
+            await scanner.stop();
+            await scanner.clear();
+        } catch (error) {
+            console.log(error);
+        }
+
+        scanner = null;
+    }
+
+    async function onScanSuccess(decoded_text) {
+        await stopScanner();
+
+        const parts = decoded_text.split("|");
+
+        if (parts.length !== 2) {
+            message.innerText = "QR Code không đúng định dạng.";
+            return;
+        }
+
+        const scanned_session_id = parts[0];
+        const token = parts[1];
+
+        if (String(scanned_session_id) !== String(session_id)) {
+            message.innerText = "QR không thuộc phiên điểm danh này.";
+            return;
+        }
+
+        const response = await fetch(
+            `${base_url}/${session_id}/verify-qr`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({token: token})
+            });
+
+        const result = await response.json();
+
+        if (!result.success) {
+            message.innerText = result.message;
+            return;
+        }
+
+        qr_verified = true;
+
+        if (method === "QR code combined with password") {
+            message.innerText =
+                "QR hợp lệ. Tiếp tục nhập mật khẩu.";
+        } else {
+            message.innerText =
+                "QR hợp lệ. Đã xác nhận bước QR.";
+        }
+    }
+
+    async function submitPassword() {
+        const password = document.getElementById("password").value;
+
+        if (
+            method === "QR code combined with password"
+            && !qr_verified
+        ) {
+            message.innerText =
+                "Bạn cần quét QR hợp lệ trước.";
+            return;
+        }
+
+        const response = await fetch(
+            `${base_url}/${session_id}/verify-password`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({password: password})
+            });
+
+        const result = await response.json();
+
+        message.innerText = result.message;
+    }
+
+    setupForm();
+</script>
 
 </body>
 </html>
