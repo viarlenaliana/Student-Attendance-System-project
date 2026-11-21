@@ -1,238 +1,276 @@
-
+import sqlite3
 import secrets
+import hashlib
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
-attendance_methods = [
+# Database demo riêng của module
+BASE_DIR = Path(__file__).resolve().parents[2]
+DATABASE_PATH = BASE_DIR / "attendance_session.db"
+
+METHODS = [
     "QR code",
     "Password",
     "QR code combined with password",
     "Manual attendance"
 ]
 
-# Prototype: data is stored temporarily in memory
-attendance_sessions = {}
+def get_connection():
+    conn = sqlite3.connect(DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 
-def check_attendance_method(method):
-    return method in attendance_methods
-
-
-def generate_qr_token():
-    return secrets.token_urlsafe(32)
-
-
-def hash_attendance_password(password):
-    if not password:
-        return None
-
-    return generate_password_hash(password)
-
-
-def verify_attendance_password(password, password_hash):
-    if not password or not password_hash:
-        return False
-
-    return check_password_hash(password_hash, password)
-
-
-def verify_qr_code(qr_token, stored_token):
-    if not qr_token or not stored_token:
-        return False
-
-    return secrets.compare_digest(qr_token, stored_token)
+def initialize_database():
+    with get_connection() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS attendance_sessions (
+                session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                schedule_id INTEGER NOT NULL,
+                lecturer_id INTEGER NOT NULL,
+                method TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'Scheduled',
+                qr_token_hash TEXT,
+                qr_expiry TEXT,
+                attendance_password TEXT,
+                created_at TEXT NOT NULL
+            )
+        """)
 
 
 def get_attendance_session(session_id):
-    return attendance_sessions.get(session_id)
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT * FROM attendance_sessions
+            WHERE session_id = ?
+            """,
+            (session_id,)
+        ).fetchone()
+
+        return dict(row) if row else None
 
 
 def get_attendance_session_list(filters=None):
-    sessions = list(attendance_sessions.values())
+    filters = filters or {}
 
-    if filters:
-        for key, value in filters.items():
-            sessions = [
-                session for session in sessions
-                if session.get(key) == value
-            ]
+    query = "SELECT * FROM attendance_sessions WHERE 1=1"
+    values = []
 
-    return sessions
+    if filters.get("lecturer_id"):
+        query += " AND lecturer_id = ?"
+        values.append(filters["lecturer_id"])
+
+    if filters.get("status"):
+        query += " AND status = ?"
+        values.append(filters["status"])
+
+    query += " ORDER BY session_id DESC"
+
+    with get_connection() as conn:
+        rows = conn.execute(query, values).fetchall()
+        return [dict(row) for row in rows]
 
 
 def create_attendance_session(schedule_id, lecturer_id, method):
-    if not schedule_id or not lecturer_id:
-        return None
+    if method not in METHODS:
+        raise ValueError("Phương thức điểm danh không hợp lệ.")
 
-    if not check_attendance_method(method):
-        return None
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO attendance_sessions (
+                schedule_id,
+                lecturer_id,
+                method,
+                status,
+                created_at
+            )
+            VALUES (?, ?, ?, 'Scheduled', ?)
+            """,
+            (
+                schedule_id,
+                lecturer_id,
+                method,
+                datetime.now().isoformat()
+            )
+        )
 
-    session_id = secrets.token_urlsafe(12)
-
-    session = {
-        "session_id": session_id,
-        "schedule_id": schedule_id,
-        "lecturer_id": lecturer_id,
-        "method": method,
-        "status": "Scheduled",
-        "qr_token": None,
-        "qr_expiry": None,
-        "password_hash": None,
-        "created_at": datetime.now(),
-        "started_at": None,
-        "ended_at": None
-    }
-
-    attendance_sessions[session_id] = session
-
-    return session
+        return cursor.lastrowid
 
 
 def start_attendance_session(session_id):
-    session = get_attendance_session(session_id)
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE attendance_sessions
+            SET status = 'Open'
+            WHERE session_id = ?
+              AND status = 'Scheduled'
+            """,
+            (session_id,)
+        )
 
-    if not session or session["status"] != "Scheduled":
-        return False
-
-    session["status"] = "Open"
-    session["started_at"] = datetime.now()
-
-    if session["method"] in [
-        "QR code",
-        "QR code combined with password"
-    ]:
-        refresh_qr_code(session_id)
-
-    return True
+        return cursor.rowcount > 0
 
 
 def end_attendance_session(session_id):
-    session = get_attendance_session(session_id)
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE attendance_sessions
+            SET status = 'Ended',
+                qr_token_hash = NULL,
+                qr_expiry = NULL
+            WHERE session_id = ?
+              AND status = 'Open'
+            """,
+            (session_id,)
+        )
 
-    if not session or session["status"] != "Open":
-        return False
-
-    session["status"] = "Ended"
-    session["ended_at"] = datetime.now()
-
-    session["qr_token"] = None
-    session["qr_expiry"] = None
-
-    return True
+        return cursor.rowcount > 0
 
 
 def reopen_attendance_session(old_session_id):
     old_session = get_attendance_session(old_session_id)
 
-    if not old_session or old_session["status"] != "Ended":
-        return None
+    if not old_session:
+        raise ValueError("Không tìm thấy phiên điểm danh.")
 
-    # Create a new session without overwriting the old one
-    new_session = create_attendance_session(
+    return create_attendance_session(
         old_session["schedule_id"],
         old_session["lecturer_id"],
         old_session["method"]
     )
 
-    return new_session
-
 
 def set_attendance_method(session_id, method):
-    session = get_attendance_session(session_id)
-
-    if not session or session["status"] != "Scheduled":
+    if method not in METHODS:
         return False
 
-    if not check_attendance_method(method):
-        return False
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE attendance_sessions
+            SET method = ?
+            WHERE session_id = ?
+              AND status = 'Scheduled'
+            """,
+            (method, session_id)
+        )
 
-    session["method"] = method
-    session["qr_token"] = None
-    session["qr_expiry"] = None
-    session["password_hash"] = None
-
-    return True
+        return cursor.rowcount > 0
 
 
 def get_session_method(session_id):
     session = get_attendance_session(session_id)
 
-    if not session:
-        return None
+    if session:
+        return session["method"]
 
-    return session["method"]
+    return None
 
 
-def refresh_qr_code(session_id, expiry_minutes=1):
+# ==============================
+# QR CODE
+# ==============================
+
+def generate_qr_code(session_id):
     session = get_attendance_session(session_id)
 
     if not session or session["status"] != "Open":
         return None
 
-    if session["method"] not in [
-        "QR code",
-        "QR code combined with password"
-    ]:
-        return None
+    qr_token = secrets.token_urlsafe(32)
+    expiry = datetime.now() + timedelta(seconds=60)
 
-    session["qr_token"] = generate_qr_token()
-    session["qr_expiry"] = datetime.now() + timedelta(
-        minutes=expiry_minutes
+    token_hash = hashlib.sha256(qr_token.encode()).hexdigest()
+
+    with get_connection() as conn:
+        conn.execute(
+            """
+            UPDATE attendance_sessions
+            SET qr_token_hash = ?,
+                qr_expiry = ?
+            WHERE session_id = ?
+            """,
+            (token_hash, expiry.isoformat(), session_id)
+        )
+
+    return qr_token
+
+
+def refresh_qr_code(session_id):
+    return generate_qr_code(session_id)
+
+
+def verify_qr_code(session_id, qr_token):
+    if not qr_token:
+        return False
+
+    session = get_attendance_session(session_id)
+
+    if not session or session["status"] != "Open":
+        return False
+
+    if not session["qr_token_hash"] or not session["qr_expiry"]:
+        return False
+
+    expiry = datetime.fromisoformat(session["qr_expiry"])
+
+    if datetime.now() > expiry:
+        return False
+
+    token_hash = hashlib.sha256(qr_token.encode()).hexdigest()
+
+    return secrets.compare_digest(
+        token_hash,
+        session["qr_token_hash"]
     )
 
-    return session["qr_token"]
 
-
-def verify_session_qr(session_id, qr_token):
-    session = get_attendance_session(session_id)
-
-    if not session or session["status"] != "Open":
-        return False
-
-    if not session["qr_token"] or not session["qr_expiry"]:
-        return False
-
-    if datetime.now() > session["qr_expiry"]:
-        return False
-
-    return verify_qr_code(qr_token, session["qr_token"])
-
+# ==============================
+# ATTENDANCE PASSWORD
+# ==============================
 
 def set_attendance_password(session_id, password):
-    session = get_attendance_session(session_id)
-
-    if not session or session["status"] != "Scheduled":
-        return False
-
-    if session["method"] not in [
-        "Password",
-        "QR code combined with password"
-    ]:
-        return False
-
     if not password or len(password) < 4:
         return False
 
-    session["password_hash"] = hash_attendance_password(password)
+    hashed_password = generate_password_hash(password)
 
-    return True
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE attendance_sessions
+            SET attendance_password = ?
+            WHERE session_id = ?
+              AND status != 'Ended'
+            """,
+            (hashed_password, session_id)
+        )
+
+        return cursor.rowcount > 0
 
 
-def verify_session_password(session_id, password):
+def verify_attendance_password(session_id, password):
+    if not password:
+        return False
+
     session = get_attendance_session(session_id)
 
     if not session or session["status"] != "Open":
         return False
 
-    if session["method"] not in [
-        "Password",
-        "QR code combined with password"
-    ]:
+    hashed_password = session["attendance_password"]
+
+    if not hashed_password:
         return False
 
-    return verify_attendance_password(
-        password,
-        session["password_hash"]
-    )
+    return check_password_hash(hashed_password, password)
+
+
+initialize_database()
