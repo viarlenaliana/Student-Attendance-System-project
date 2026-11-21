@@ -1,0 +1,36 @@
+{% extends "base.html" %} <!--Thông báo rằng dashboard.html kế thừa giao diện chung từ base.html.-->
+
+{% block content %}
+
+<h2>Student Dashboard</h2>
+<p>Welcome to UniAttend!</p>
+
+    <div class="dashboard-cards">
+        <div class="card card-blue">
+        <p class="card-title">Tổng số môn học</p>
+        <h3 class="card-value">5</h3>
+        <span class="card-description">
+            Môn học đang đăng ký
+        </span>
+    </div>
+
+    <div class="card card-green">
+        <p class="card-title">Số buổi đã điểm danh</p>
+        <h3 class="card-value">24</h3>
+        <span class="card-description">Buổi học đã tham gia</span>
+    </div>
+
+    <div class="card card-red">
+        <p class="card-title">Số buổi vắng </p>
+        <h3 class="card-value">0</h3>
+        <span class="card-description">Buổi học đã vắng</span>
+    </div>
+
+    <div class="card card-purple">
+        <p class="card-title">Tỷ lệ chuyên cần</p>
+        <h3 class="card-value">98%</h3>
+        <span class="card-description">Tỷ lệ tham gia lớp học</span>
+    </div>
+</div>
+
+{% endblock %}

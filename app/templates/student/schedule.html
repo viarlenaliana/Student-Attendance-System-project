@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2>My Schedule</h2>
+<p>View your weekly class schedule.</p>
+
+<section class="schedule-section">
+    <h3>Weekly Timetable</h3>
+<table class="timetable">
+    <thead>
+        <tr>
+            <th>Time</th>
+            <th>Monday</th>
+            <th>Tuesday</th>
+            <th>Wednesday</th>
+            <th>Thursday</th>
+            <th>Friday</th>
+            <th>Saturday</th>
+        </tr>
+    </thead>
+
+    <tbody>
+                <tr>
+            <td>07:00 - 09:00</td>
+            <td><span class="subject-python">Python</span></td>
+            <td></td>
+            <td><span class="subject-database">Database</span></td>
+            <td></td>
+            <td><span class="subject-networking">Networking</span></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>09:00 - 11:00</td>
+            <td></td>
+            <td>Mathematics</td>
+            <td></td>
+            <td>Web Development</td>
+            <td></td>
+            <td>English</td>
+        </tr>
+
+        <tr>
+            <td>13:00 - 15:00</td>
+            <td>Software Engineering</td>
+            <td></td>
+            <td></td>
+            <td><span class="subject-python">Python</span></td>
+            <td><span class="subject-database">Database</span></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+</section>
+
+<section class="upcoming-section">
+
+    <h3>Upcoming Classes</h3>
+
+    <div class="upcoming-list">
+        <div class="upcoming-card">
+             <div class="class-date">
+                <h4>24/11/2026</h4>
+             </div>
+        <div class="class-info">
+            <h4>Python Programming</h4>
+            <p>07:00 - 09:00</p>
+            <p>Room: A101</p>
+        </div>
+    </div>
+
+</section>
+
+{% endblock %}

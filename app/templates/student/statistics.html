@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2>Attendance Statistics</h2>
+<p>View your attendance statistics.</p>
+
+    <section class="statistics-section">
+
+        <div class="statistics-filter">
+        <div class="filter-group">
+            <label for="semester">Semester</label>
+            <select id="semester">
+                <option>All Semesters</option>
+                <option>Semester 1</option>
+                <option>Semester 2</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="subject">Subject</label>
+            <select id="subject">
+                <option>All Subjects</option>
+                <option>Python</option>
+                <option>Database</option>
+                <option>Networking</option>
+                <option>Web Development</option>
+            </select>
+        </div>
+    </div>
+
+    <h3>Attendance Overview</h3>
+
+    <div class="statistics-cards">
+        <div class="stat-card">
+
+            <h4>Overall Attendance Rate</h4>
+
+            <p class="stat-value">92%</p>
+
+            <span>Attendance rate</span>
+        </div>
+
+        <div class="stat-card">
+            <h4>Total Classes</h4>
+            <p class="stat-value">26</p>
+            <span>Total scheduled classes</span>
+        </div>
+
+        <div class="stat-card">
+            <h4>Present</h4>
+            <p class="stat-value">24</p>
+            <span>Classes attended</span>
+        </div>
+
+        <div class="stat-card">
+            <h4>Absent</h4>
+            <p class="stat-value">2</p>
+            <span>Classes missed</span>
+        </div>
+
+    </div>
+        <div class="chart-section">
+
+            <h3>Attendance Performance</h3>
+
+            <div class="attendance-chart">
+                <div class="chart-axis-labels">
+                    <span>100%</span>
+                    <span>75%</span>
+                    <span>50%</span>
+                    <span>25%</span>
+                    <span>0%</span>
+                </div>
+                <div class="chart-bar">
+                    <div class="bar-value">95%</div>
+                    <div class="bar-fill" style="height: 95%;"></div>
+                    <span>Python</span>
+                </div>
+
+            <div class="chart-bar">
+                <div class="bar-value">90%</div>
+                <div class="bar-fill" style="height: 90%;"></div>
+                <span>Database</span>
+            </div>
+
+            <div class="chart-bar">
+                <div class="bar-value">85%</div>
+                <div class="bar-fill" style="height: 85%;"></div>
+                <span>Networking</span>
+            </div>
+
+            <div class="chart-bar">
+                <div class="bar-value">100%</div>
+                <div class="bar-fill" style="height: 100%;"></div>
+                <span>Web Development</span>
+            </div>
+            </div>
+        </div>
+
+    <div class="subject-statistics">
+        <h3>Subject Attendance Details</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Subject</th>
+                    <th>Total Classes</th>
+                    <th>Present</th>
+                    <th>Absent</th>
+                    <th>Attendance Rate</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                <tr>
+                    <td>Python</td>
+                    <td>10</td>
+                    <td>9</td>
+                    <td>1</td>
+                    <td>90%</td>
+                </tr>
+
+                <tr>
+                    <td>Database</td>
+                    <td>8</td>
+                    <td>7</td>
+                    <td>1</td>
+                    <td>87.5%</td>
+                </tr>
+
+                <tr>
+                    <td>Networking</td>
+                    <td>4</td>
+                    <td>3</td>
+                    <td>1</td>
+                    <td>75%</td>
+                </tr>
+
+                <tr>
+                    <td>Web Development</td>
+                    <td>4</td>
+                    <td>4</td>
+                    <td>0</td>
+                    <td>100%</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

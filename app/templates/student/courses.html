@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2>My Courses</h2>
+<p>Danh sách môn học được lấy trực tiếp từ cơ sở dữ liệu.</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Mã môn</th>
+            <th>Tên môn học</th>
+            <th>Khoa</th>
+            <th>Số tín chỉ</th>
+            <th>Mô tả</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for course in courses %}
+        <tr>
+            <td>{{ course.course_code }}</td>
+            <td>{{ course.course_name }}</td>
+            <td>
+                {{ course.department.department_name
+                   if course.department else "Chưa phân khoa" }}
+            </td>
+            <td>{{ course.credits }}</td>
+            <td>{{ course.description or "Chưa có mô tả" }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="5" style="text-align: center;">
+                Chưa có môn học nào trong hệ thống.
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

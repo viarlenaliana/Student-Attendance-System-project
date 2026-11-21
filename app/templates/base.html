@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Attendance System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-logo"> <!--khu vực thương hiệu-->
+            <h1>UniAttend</h1>
+            <p>Student Attendance Management System</p>
+        </div>
+
+        <div class="header-user"> <!--khu vực thông tin người dùng.-->
+            <span>Student</span>
+            <div class="avatar">A</div>
+        </div>
+    </header>
+
+    <div class="container"> 
+        <aside class="sidebar"> 
+            <nav>
+                <a href="{{ url_for('main.home') }}" class="{% if request.endpoint == 'main.home' %}active{% endif %}"
+                >Dashboard</a>
+                <a href="{{ url_for('main.schedule') }}"class="{% if request.endpoint == 'main.schedule' %}active{% endif %}"
+                >My Schedule</a>
+                <a href="{{ url_for('main.courses') }}" class="{% if request.endpoint == 'main.courses' %}active{% endif %}"
+                >My Courses</a>
+                <a href="{{ url_for('main.attendance_history') }}" class="{% if request.endpoint == 'main.attendance_history' %}active{% endif %}"
+                >Attendance History</a>
+                <a href="{{ url_for('main.statistics') }}" class="{% if request.endpoint == 'main.statistics' %}active{% endif %}"
+                >Statistics</a>
+            </nav>
+        </aside>
+
+        <main>
+            {% block content %}
+
+            <h2>Student Dashboard</h2>
+            <p>Welcome to UniAttend!</p>
+
+                <div class="card">Tổng số môn học</div>
+                <div class="card">Số buổi đã điểm danh</div>
+                <div class="card">Số buổi vắng</div>
+                <div class="card">Tỷ lệ chuyên cần</div>
+            </div>
+            {% endblock %}
+        </main>
+    </div>
+</body>
+</html>
+                
