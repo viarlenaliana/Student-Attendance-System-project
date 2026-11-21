@@ -1,105 +1,233 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Attendance Sessions</title>
-</head>
-<body>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý phiên điểm danh</title>
 
-    <h1>Attendance Session Management</h1>
-
-    <h2>Create Attendance Session</h2>
-
-    <form id="create-session-form">
-
-        <label>Schedule ID:</label>
-        <input type="text" id="schedule_id" required>
-
-        <label>Lecturer ID:</label>
-        <input type="text" id="lecturer_id" required>
-
-        <label>Attendance Method:</label>
-        <select id="method">
-            <option value="QR code">QR code</option>
-            <option value="Password">Password</option>
-            <option value="QR code combined with password">
-                QR code combined with password
-            </option>
-            <option value="Manual attendance">
-                Manual attendance
-            </option>
-        </select>
-
-        <button type="submit">Create Session</button>
-
-    </form>
-
-    <h2>Session List</h2>
-
-    <button onclick="loadSessions()">Refresh List</button>
-
-    <div id="session-list"></div>
-
-    <script>
-        async function loadSessions() {
-            const response = await fetch("/attendance-sessions/");
-            const sessions = await response.json();
-
-            const container = document.getElementById("session-list");
-            container.innerHTML = "";
-
-            sessions.forEach(session => {
-                const div = document.createElement("div");
-
-                const title = document.createElement("h3");
-                title.textContent = "Session " + session.session_id;
-
-                const details = document.createElement("p");
-                details.textContent =
-                    "Method: " + session.method +
-                    " | Status: " + session.status;
-
-                div.appendChild(title);
-                div.appendChild(details);
-
-                container.appendChild(div);
-            });
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+            background: #f4f6f9;
         }
 
-        document.getElementById("create-session-form")
-            .addEventListener("submit", async function(event) {
+        h1 {
+            color: #1f2937;
+        }
 
-                event.preventDefault();
+        .container {
+            max-width: 1100px;
+            margin: auto;
+        }
 
-                const data = {
-                    schedule_id:
-                        document.getElementById("schedule_id").value,
-                    lecturer_id:
-                        document.getElementById("lecturer_id").value,
-                    method:
-                        document.getElementById("method").value
-                };
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
 
-                const response = await fetch(
-                    "/attendance-sessions/create",
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify(data)
-                    }
-                );
+        input, select, button {
+            padding: 10px;
+            margin: 5px;
+        }
 
-                const result = await response.json();
+        button {
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background: #2563eb;
+            color: white;
+        }
 
-                alert(result.error || "Session created");
+        .end-btn {
+            background: #dc2626;
+        }
 
-                loadSessions();
-            });
+        .detail-btn {
+            background: #059669;
+        }
 
-        loadSessions();
-    </script>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+
+        th {
+            background: #2563eb;
+            color: white;
+        }
+
+        .status {
+            font-weight: bold;
+        }
+
+        .Scheduled {
+            color: orange;
+        }
+
+        .Open {
+            color: green;
+        }
+
+        .Ended {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+
+    <h1>Quản lý phiên điểm danh</h1>
+
+    <div class="card">
+        <h2>Tạo phiên điểm danh</h2>
+
+        <form id="create_session_form">
+
+            <label>Mã lịch học:</label>
+            <input type="number" id="schedule_id" required>
+
+            <label>Mã giảng viên:</label>
+            <input type="number" id="lecturer_id" required>
+
+            <label>Phương thức:</label>
+            <select id="method" required>
+                <option value="QR code">QR code</option>
+                <option value="Password">Password</option>
+                <option value="QR code combined with password">
+                    QR code combined with password
+                </option>
+                <option value="Manual attendance">Manual attendance</option>
+            </select>
+
+            <button type="submit">Tạo phiên</button>
+        </form>
+
+        <p id="message"></p>
+    </div>
+
+    <div class="card">
+        <h2>Danh sách phiên điểm danh</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Session ID</th>
+                    <th>Schedule ID</th>
+                    <th>Phương thức</th>
+                    <th>Trạng thái</th>
+                    <th>Thao tác</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for session in sessions %}
+                <tr>
+                    <td>{{ session.session_id }}</td>
+                    <td>{{ session.schedule_id }}</td>
+                    <td>{{ session.method }}</td>
+                    <td class="status {{ session.status }}">
+                        {{ session.status }}
+                    </td>
+
+                    <td>
+                        <button onclick="startSession({{ session.session_id }})">
+                            Mở phiên
+                        </button>
+
+                        <button class="end-btn"
+                            onclick="endSession({{ session.session_id }})">
+                            Kết thúc
+                        </button>
+
+                        <button class="detail-btn"
+                            onclick="viewDetail({{ session.session_id }})">
+                            Chi tiết
+                        </button>
+
+                        <button onclick="reopenSession({{ session.session_id }})">
+                            Mở lại
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+    const base_url = "/attendance-sessions";
+
+    document.getElementById("create_session_form")
+        .addEventListener("submit", async function(event) {
+
+        event.preventDefault();
+
+        const data = {
+            schedule_id: document.getElementById("schedule_id").value,
+            lecturer_id: document.getElementById("lecturer_id").value,
+            method: document.getElementById("method").value
+        };
+
+        const response = await fetch(`${base_url}/create`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        document.getElementById("message").innerText = result.message;
+
+        if (result.success) {
+            location.reload();
+        }
+    });
+
+    async function startSession(session_id) {
+        await sendAction(`${base_url}/${session_id}/start`);
+    }
+
+    async function endSession(session_id) {
+        await sendAction(`${base_url}/${session_id}/end`);
+    }
+
+    async function reopenSession(session_id) {
+        await sendAction(`${base_url}/${session_id}/reopen`);
+    }
+
+    async function sendAction(url) {
+        const response = await fetch(url, {
+            method: "POST"
+        });
+
+        const result = await response.json();
+
+        alert(result.message);
+
+        if (result.success) {
+            location.reload();
+        }
+    }
+
+    function viewDetail(session_id) {
+        window.location.href = `${base_url}/${session_id}`;
+    }
+</script>
 
 </body>
 </html>
