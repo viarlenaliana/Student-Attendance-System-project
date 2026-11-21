@@ -1,109 +1,45 @@
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Attendance Session Detail</title>
+    <title>Chi tiết phiên điểm danh</title>
 
     <style>
         body {
             font-family: Arial, sans-serif;
             background: #f4f6f9;
-            margin: 0;
             padding: 30px;
         }
 
         .container {
-            max-width: 850px;
+            max-width: 800px;
             margin: auto;
+        }
+
+        .card {
             background: white;
-            padding: 25px;
-            border-radius: 12px;
-        }
-
-        h1 {
-            color: #2c3e50;
-        }
-
-        .info {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
+            padding: 20px;
             margin-bottom: 20px;
+            border-radius: 10px;
         }
 
-        .info p {
-            margin: 10px 0;
-        }
-
-        .actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin: 20px 0;
+        button, input, select {
+            padding: 10px;
+            margin: 5px;
         }
 
         button {
-            border: none;
-            padding: 10px 16px;
-            border-radius: 6px;
-            cursor: pointer;
+            background: #2563eb;
             color: white;
-            background: #3498db;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
         }
 
-        button:hover {
-            opacity: 0.85;
-        }
-
-        .start {
-            background: #27ae60;
-        }
-
-        .end {
-            background: #e74c3c;
-        }
-
-        .reopen {
-            background: #8e44ad;
-        }
-
-        .refresh {
-            background: #f39c12;
-        }
-
-        .password-box {
+        img {
+            max-width: 300px;
+            display: block;
             margin-top: 20px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-        }
-
-        input, select {
-            padding: 10px;
-            margin: 5px 0;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        #qr-result {
-            margin-top: 15px;
-            padding: 15px;
-            background: #ecf0f1;
-            overflow-wrap: anywhere;
-        }
-
-        #message {
-            margin-top: 15px;
-            font-weight: bold;
-        }
-
-        .back {
-            display: inline-block;
-            margin-bottom: 20px;
-            text-decoration: none;
-            color: #3498db;
         }
     </style>
 </head>
@@ -112,268 +48,142 @@
 
 <div class="container">
 
-    <a class="back" href="session_list.html">
-        &larr; Back to Session List
-    </a>
+    <h1>Chi tiết phiên điểm danh</h1>
 
-    <h1>Attendance Session Detail</h1>
-
-    <div class="info">
-        <p><strong>Session ID:</strong>
-            <span id="session_id">Loading...</span>
-        </p>
-
-        <p><strong>Schedule ID:</strong>
-            <span id="schedule_id">Loading...</span>
-        </p>
-
-        <p><strong>Lecturer ID:</strong>
-            <span id="lecturer_id">Loading...</span>
-        </p>
-
-        <p><strong>Method:</strong>
-            <span id="method">Loading...</span>
-        </p>
-
-        <p><strong>Status:</strong>
-            <span id="status">Loading...</span>
-        </p>
-
-        <p><strong>Created At:</strong>
-            <span id="created_at">Loading...</span>
-        </p>
-
-        <p><strong>Started At:</strong>
-            <span id="started_at">Loading...</span>
-        </p>
-
-        <p><strong>Ended At:</strong>
-            <span id="ended_at">Loading...</span>
-        </p>
+    <div class="card">
+        <p><b>Session ID:</b> {{ session.session_id }}</p>
+        <p><b>Schedule ID:</b> {{ session.schedule_id }}</p>
+        <p><b>Phương thức:</b> {{ session.method }}</p>
+        <p><b>Trạng thái:</b> {{ session.status }}</p>
     </div>
 
-    <h2>Session Actions</h2>
+    <div class="card">
+        <h2>Chọn phương thức điểm danh</h2>
 
-    <div class="actions">
-        <button class="start" onclick="startSession()">
-            Start Session
-        </button>
+        <select id="method">
+            <option value="QR code">QR code</option>
+            <option value="Password">Password</option>
+            <option value="QR code combined with password">
+                QR code combined with password
+            </option>
+            <option value="Manual attendance">Manual attendance</option>
+        </select>
 
-        <button class="end" onclick="endSession()">
-            End Session
-        </button>
-
-        <button class="reopen" onclick="reopenSession()">
-            Reopen Session
-        </button>
-
-        <button class="refresh" onclick="refreshQR()">
-            Refresh QR Code
-        </button>
+        <button onclick="changeMethod()">Lưu phương thức</button>
     </div>
 
-    <div id="qr-result"></div>
+    <div class="card">
+        <h2>QR Code</h2>
 
-    <div class="password-box">
-        <h2>Set Attendance Password</h2>
+        <button onclick="refreshQR()">Tạo / Làm mới QR</button>
+
+        <p id="qr_message"></p>
+        <div id="qr_container"></div>
+    </div>
+
+    <div class="card">
+        <h2>Mật khẩu điểm danh</h2>
 
         <input
             type="password"
             id="attendance_password"
-            placeholder="Enter attendance password"
-        >
+            placeholder="Nhập mật khẩu">
 
-        <button onclick="setPassword()">
-            Set Password
-        </button>
+        <button onclick="setPassword()">Lưu mật khẩu</button>
+
+        <p id="password_message"></p>
     </div>
 
-    <p id="message"></p>
+    <div class="card">
+        <h2>Liên kết Student</h2>
+
+        <a href="/attendance-sessions/{{ session.session_id }}/student">
+            Mở giao diện điểm danh Student
+        </a>
+    </div>
 
 </div>
 
 <script>
-    // Get session_id from URL
-    const params = new URLSearchParams(window.location.search);
-    const sessionId = params.get("session_id");
+    const session_id = {{ session.session_id }};
+    const base_url = "/attendance-sessions";
 
-    // Display message
-    function showMessage(message) {
-        document.getElementById("message").textContent = message;
-    }
+    document.getElementById("method").value = {{ session.method | tojson }};
 
-    // Load session details
-    async function loadSessionDetail() {
-        if (!sessionId) {
-            showMessage("Session ID not found.");
-            return;
-        }
-
-        try {
-            const response = await fetch(
-                `/attendance-sessions/${sessionId}`
-            );
-
-            const session = await response.json();
-
-            if (!response.ok) {
-                showMessage(session.error || "Cannot load session.");
-                return;
-            }
-
-            document.getElementById("session_id").textContent =
-                session.session_id;
-
-            document.getElementById("schedule_id").textContent =
-                session.schedule_id;
-
-            document.getElementById("lecturer_id").textContent =
-                session.lecturer_id;
-
-            document.getElementById("method").textContent =
-                session.method;
-
-            document.getElementById("status").textContent =
-                session.status;
-
-            document.getElementById("created_at").textContent =
-                session.created_at || "N/A";
-
-            document.getElementById("started_at").textContent =
-                session.started_at || "N/A";
-
-            document.getElementById("ended_at").textContent =
-                session.ended_at || "N/A";
-
-        } catch (error) {
-            showMessage("Error loading session detail.");
-        }
-    }
-
-    // Start session
-    async function startSession() {
-        if (!confirm("Start this attendance session?")) {
-            return;
-        }
+    async function changeMethod() {
+        const method = document.getElementById("method").value;
 
         const response = await fetch(
-            `/attendance-sessions/${sessionId}/start`,
+            `${base_url}/${session_id}/method`,
             {
-                method: "POST"
-            }
-        );
-
-        const result = await response.json();
-
-        showMessage(
-            result.message || result.error
-        );
-
-        loadSessionDetail();
-    }
-
-    // End session
-    async function endSession() {
-        if (!confirm("End this attendance session?")) {
-            return;
-        }
-
-        const response = await fetch(
-            `/attendance-sessions/${sessionId}/end`,
-            {
-                method: "POST"
-            }
-        );
-
-        const result = await response.json();
-
-        showMessage(
-            result.message || result.error
-        );
-
-        loadSessionDetail();
-    }
-
-    // Reopen session
-    async function reopenSession() {
-        if (!confirm("Create a new session from this session?")) {
-            return;
-        }
-
-        const response = await fetch(
-            `/attendance-sessions/${sessionId}/reopen`,
-            {
-                method: "POST"
-            }
-        );
-
-        const result = await response.json();
-
-        if (response.ok) {
-            showMessage("New session created: " + result.session_id);
-
-            // Open new session detail
-            window.location.href =
-                `session_detail.html?session_id=${result.session_id}`;
-        } else {
-            showMessage(result.error || "Cannot reopen session.");
-        }
-    }
-
-    // Refresh QR token
-    async function refreshQR() {
-        const response = await fetch(
-            `/attendance-sessions/${sessionId}/qr/refresh`,
-            {
-                method: "POST"
-            }
-        );
-
-        const result = await response.json();
-
-        if (response.ok) {
-            document.getElementById("qr-result").textContent =
-                "QR Token: " + result.qr_token;
-        } else {
-            document.getElementById("qr-result").textContent =
-                result.error || "Cannot refresh QR.";
-        }
-    }
-
-    // Set attendance password
-    async function setPassword() {
-        const password =
-            document.getElementById("attendance_password").value;
-
-        if (!password) {
-            showMessage("Please enter a password.");
-            return;
-        }
-
-        const response = await fetch(
-            `/attendance-sessions/${sessionId}/password`,
-            {
-                method: "PUT",
+                method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({
-                    password: password
-                })
+                body: JSON.stringify({method: method})
             }
         );
 
         const result = await response.json();
 
-        showMessage(
-            result.message || result.error
-        );
+        alert(result.message);
 
-        document.getElementById("attendance_password").value = "";
+        if (result.success) {
+            location.reload();
+        }
     }
 
-    // Load data when page opens
-    loadSessionDetail();
+    async function refreshQR() {
+        const response = await fetch(
+            `${base_url}/${session_id}/qr`,
+            {
+                method: "POST"
+            }
+        );
+
+        const result = await response.json();
+
+        if (!result.success) {
+            document.getElementById("qr_message").innerText =
+                result.message;
+            return;
+        }
+
+        const qr_text = `${session_id}|${result.token}`;
+
+        document.getElementById("qr_message").innerText =
+            "QR đã được tạo. Token có thời hạn 60 giây.";
+
+        document.getElementById("qr_container").innerHTML = "";
+
+        const qr_img = document.createElement("img");
+
+        qr_img.src =
+            "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data="
+            + encodeURIComponent(qr_text);
+
+        document.getElementById("qr_container").appendChild(qr_img);
+    }
+
+    async function setPassword() {
+        const password = document.getElementById("attendance_password").value;
+
+        const response = await fetch(
+            `${base_url}/${session_id}/password`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({password: password})
+            }
+        );
+
+        const result = await response.json();
+
+        document.getElementById("password_message").innerText =
+            result.message;
+    }
 </script>
 
 </body>
