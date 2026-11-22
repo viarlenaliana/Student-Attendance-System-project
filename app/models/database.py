@@ -1,12 +1,16 @@
-"""Quản lý kết nối cơ sở dữ liệu dùng chung (MySQL theo thống nhất nhóm và SQLite dự phòng).
+"""Quản lý kết nối cơ sở dữ liệu (MySQL theo cấu hình nhóm hoặc SQLite khi cấu hình DATABASE_TYPE=sqlite).
 
 Khởi tạo các bảng thuộc luồng tài khoản, OTP, thông báo và nhật ký hoạt động.
+Khi DATABASE_TYPE=mysql nhưng kết nối thất bại, hệ thống báo lỗi rõ ràng và không tự chuyển sang SQLite.
 """
+import logging
 import os
 import sqlite3
 from datetime import datetime
 
 from flask import current_app, has_app_context
+
+logger = logging.getLogger(__name__)
 
 try:
     import pymysql
@@ -146,23 +150,32 @@ def now_text():
 
 
 def get_db_type():
-    """Xác định loại cơ sở dữ liệu: 'mysql' hoặc 'sqlite'."""
+    """Xác định loại cơ sở dữ liệu được cấu hình: 'mysql' hoặc 'sqlite'."""
+    database_type = None
     if has_app_context():
         if current_app.config.get("DATABASE_TYPE"):
-            return str(current_app.config["DATABASE_TYPE"]).lower()
-        if current_app.config.get("DB_TYPE"):
-            return str(current_app.config["DB_TYPE"]).lower()
-        if current_app.config.get("SQLITE_DB_PATH") and not current_app.config.get("MYSQL_HOST"):
-            return "sqlite"
-    if os.environ.get("DATABASE_TYPE"):
-        return os.environ["DATABASE_TYPE"].lower()
-    if os.environ.get("DB_TYPE"):
-        return os.environ["DB_TYPE"].lower()
-    return "mysql" if pymysql is not None else "sqlite"
+            database_type = str(current_app.config["DATABASE_TYPE"]).strip().lower()
+        elif current_app.config.get("DB_TYPE"):
+            database_type = str(current_app.config["DB_TYPE"]).strip().lower()
+        elif current_app.config.get("SQLITE_DB_PATH") and not current_app.config.get("MYSQL_HOST"):
+            database_type = "sqlite"
+    if database_type is None:
+        if os.environ.get("DATABASE_TYPE"):
+            database_type = os.environ["DATABASE_TYPE"].strip().lower()
+        elif os.environ.get("DB_TYPE"):
+            database_type = os.environ["DB_TYPE"].strip().lower()
+        else:
+            database_type = "mysql" if pymysql is not None else "sqlite"
+
+    if database_type not in ("mysql", "sqlite"):
+        raise database_error(
+            f"Cấu hình DATABASE_TYPE='{database_type}' không hợp lệ. Chỉ hỗ trợ 'mysql' hoặc 'sqlite'."
+        )
+    return database_type
 
 
 def get_sqlite_connection():
-    """Tạo kết nối SQLite dự phòng cho môi trường demo hoặc kiểm thử."""
+    """Tạo kết nối SQLite khi cấu hình DATABASE_TYPE=sqlite."""
     if has_app_context() and current_app.config.get("SQLITE_DB_PATH"):
         database_path = current_app.config["SQLITE_DB_PATH"]
     elif has_app_context() and current_app.config.get("database_path"):
@@ -176,24 +189,44 @@ def get_sqlite_connection():
 
 
 def get_db_connection():
-    """Lấy kết nối MySQL theo cấu hình hoặc tự động chuyển sang SQLite nếu chưa bật MySQL."""
+    """Lấy kết nối cơ sở dữ liệu theo đúng DATABASE_TYPE đã cấu hình (không tự fallback khi MySQL lỗi)."""
     database_type = get_db_type()
-    if database_type == "mysql" and pymysql is not None:
+    if database_type == "mysql":
+        if pymysql is None:
+            raise database_error(
+                "Đã cấu hình DATABASE_TYPE=mysql nhưng chưa cài đặt thư viện PyMySQL."
+            )
+        config = current_app.config if has_app_context() else {}
+        host = config.get("MYSQL_HOST", os.environ.get("MYSQL_HOST", "localhost"))
+        user = config.get("MYSQL_USER", os.environ.get("MYSQL_USER", "root"))
+        password = config.get("MYSQL_PASSWORD", os.environ.get("MYSQL_PASSWORD", ""))
+        database_name = config.get("MYSQL_DB", os.environ.get("MYSQL_DB", "student_attendance"))
+        port = int(config.get("MYSQL_PORT", os.environ.get("MYSQL_PORT", 3306)))
+        charset = config.get("MYSQL_CHARSET", os.environ.get("MYSQL_CHARSET", "utf8mb4"))
         try:
-            config = current_app.config if has_app_context() else {}
-            connection = pymysql.connect(
-                host=config.get("MYSQL_HOST", os.environ.get("MYSQL_HOST", "localhost")),
-                user=config.get("MYSQL_USER", os.environ.get("MYSQL_USER", "root")),
-                password=config.get("MYSQL_PASSWORD", os.environ.get("MYSQL_PASSWORD", "")),
-                database=config.get("MYSQL_DB", os.environ.get("MYSQL_DB", "student_attendance")),
-                port=int(config.get("MYSQL_PORT", os.environ.get("MYSQL_PORT", 3306))),
-                charset=config.get("MYSQL_CHARSET", os.environ.get("MYSQL_CHARSET", "utf8mb4")),
+            return pymysql.connect(
+                host=host,
+                user=user,
+                password=password,
+                database=database_name,
+                port=port,
+                charset=charset,
                 cursorclass=pymysql.cursors.DictCursor,
                 autocommit=False,
             )
-            return connection
-        except Exception:
-            return get_sqlite_connection()
+        except Exception as error:
+            logger.error(
+                "Kết nối MySQL thất bại (%s:%s/%s, user=%s): %s",
+                host,
+                port,
+                database_name,
+                user,
+                error,
+            )
+            raise database_error(
+                f"Không thể kết nối tới MySQL ({host}:{port}/{database_name}, user='{user}'). "
+                f"Vui lòng kiểm tra MySQL server và cấu hình kết nối. Chi tiết: {error}"
+            ) from error
     return get_sqlite_connection()
 
 

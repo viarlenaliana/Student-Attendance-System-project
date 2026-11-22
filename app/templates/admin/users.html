@@ -102,6 +102,7 @@
                 Cập nhật
               </button>
               <form method="post" action="{{ url_for('admin_users.user_status_action', user_id=user_item.user_id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 {% if user_item.is_active %}
                   <input type="hidden" name="is_active" value="0">
                   <button
@@ -140,6 +141,7 @@
 <div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <form method="post" action="{{ url_for('admin_users.user_create_action') }}" class="modal-content" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="modal-header">
         <h2 class="modal-title fs-5" id="createUserModalLabel">Tạo tài khoản mới</h2>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
@@ -185,6 +187,7 @@
 <div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <form method="post" id="editUserForm" class="modal-content" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="modal-header">
         <h2 class="modal-title fs-5" id="editUserModalLabel">Cập nhật tài khoản</h2>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>

@@ -159,21 +159,46 @@ def user_status_action(user_id):
         flash("Không tìm thấy tài khoản.", "danger")
         return redirect(url_for("admin_users.user_list_page"))
 
+    desired_raw = request.form.get("is_active", "").strip().lower()
+    log_action = "unlock_user" if desired_raw in ("1", "true") else "lock_user"
+
     if int(target_user["user_id"]) == int(admin_user["user_id"]):
+        create_activity_log(
+            admin_user["user_id"],
+            log_action,
+            "user",
+            user_id,
+            "failed",
+            details=f"Từ chối tự khóa/mở khóa tài khoản quản trị đang đăng nhập ({admin_user['username']})",
+        )
         flash("Không thể tự khóa tài khoản quản trị đang đăng nhập.", "danger")
         return redirect(url_for("admin_users.user_list_page"))
 
     if target_user["role"] == "admin":
+        create_activity_log(
+            admin_user["user_id"],
+            log_action,
+            "user",
+            user_id,
+            "failed",
+            details=f"Từ chối thao tác khóa/mở khóa đối với tài khoản Admin ({target_user['username']})",
+        )
         flash("Không thể khóa hoặc mở khóa tài khoản Admin tại đây.", "danger")
         return redirect(url_for("admin_users.user_list_page"))
 
-    desired_raw = request.form.get("is_active", "").strip().lower()
     if desired_raw not in ("1", "0", "true", "false"):
+        create_activity_log(
+            admin_user["user_id"],
+            "set_user_status",
+            "user",
+            user_id,
+            "failed",
+            details="Trạng thái tài khoản yêu cầu không hợp lệ",
+        )
         flash("Trạng thái tài khoản yêu cầu không hợp lệ.", "danger")
         return redirect(url_for("admin_users.user_list_page"))
 
     desired_active = desired_raw in ("1", "true")
-    log_action = "unlock_user" if desired_active else "lock_user"
 
     try:
         set_user_status(user_id, desired_active)

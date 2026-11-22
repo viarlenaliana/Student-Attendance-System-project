@@ -12,7 +12,7 @@
    ```
 2. Điền giá trị phù hợp cho máy phát triển của bạn:
    - `SECRET_KEY`: chuỗi ngẫu nhiên bảo mật session Flask.
-   - `DATABASE_TYPE`: `mysql` (mặc định theo quy ước nhóm) hoặc `sqlite` (dự phòng khi chạy demo/kiểm thử không cần MySQL server).
+   - `DATABASE_TYPE`: `mysql` (mặc định theo quy ước nhóm; báo lỗi rõ ràng nếu kết nối MySQL thất bại, không tự chuyển sang SQLite) hoặc đặt rõ `sqlite` khi chạy demo/kiểm thử không cần MySQL server.
 
 ---
 

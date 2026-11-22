@@ -20,6 +20,7 @@ class Config:
     """Lớp cấu hình chính đọc giá trị từ biến môi trường."""
 
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-change-this-secret-key-in-env")
+    CSRF_ENABLED = _parse_bool(os.environ.get("CSRF_ENABLED"), True)
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = _parse_bool(os.environ.get("SESSION_COOKIE_SECURE"), False)

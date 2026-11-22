@@ -1,5 +1,6 @@
 document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll("[data-toggle-password]").forEach(function (toggleButton) {
+    toggleButton.setAttribute("aria-pressed", "false");
     toggleButton.addEventListener("click", function () {
       var targetId = toggleButton.getAttribute("data-toggle-password");
       var inputElement = document.getElementById(targetId);
@@ -9,17 +10,32 @@ document.addEventListener("DOMContentLoaded", function () {
       var isHidden = inputElement.type === "password";
       inputElement.type = isHidden ? "text" : "password";
       toggleButton.textContent = isHidden ? "Ẩn" : "Hiện";
+      toggleButton.setAttribute("aria-pressed", isHidden ? "true" : "false");
     });
   });
 
   document.querySelectorAll("[data-confirm-password-form]").forEach(function (formElement) {
+    var newPasswordInput = formElement.querySelector("[name='new_password']");
+    var confirmPasswordInput = formElement.querySelector("[name='confirm_password']");
+    if (!newPasswordInput || !confirmPasswordInput) {
+      return;
+    }
+
+    var clearMismatchError = function () {
+      confirmPasswordInput.setCustomValidity("");
+    };
+
+    newPasswordInput.addEventListener("input", clearMismatchError);
+    confirmPasswordInput.addEventListener("input", clearMismatchError);
+
     formElement.addEventListener("submit", function (event) {
-      var newPasswordInput = formElement.querySelector("[name='new_password']");
-      var confirmPasswordInput = formElement.querySelector("[name='confirm_password']");
-      if (newPasswordInput && confirmPasswordInput && newPasswordInput.value !== confirmPasswordInput.value) {
+      if (newPasswordInput.value !== confirmPasswordInput.value) {
         event.preventDefault();
-        alert("Mật khẩu mới và xác nhận mật khẩu không khớp.");
+        confirmPasswordInput.setCustomValidity("Mật khẩu mới và xác nhận mật khẩu không khớp.");
+        confirmPasswordInput.reportValidity();
         confirmPasswordInput.focus();
+      } else {
+        confirmPasswordInput.setCustomValidity("");
       }
     });
   });

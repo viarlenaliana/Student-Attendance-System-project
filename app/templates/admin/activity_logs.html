@@ -32,7 +32,7 @@
         {% endfor %}
       </select>
     </div>
-    <div class="col-md-2">
+    <div class="col-md-1">
       <label class="form-label small fw-semibold" for="log_result">Kết quả</label>
       <select class="form-select" id="log_result" name="result">
         <option value="">Tất cả</option>
@@ -44,7 +44,11 @@
       <label class="form-label small fw-semibold" for="log_date_from">Từ ngày</label>
       <input type="date" class="form-control" id="log_date_from" name="date_from" value="{{ filters.date_from or '' }}">
     </div>
-    <div class="col-md-2 d-flex gap-2">
+    <div class="col-md-2">
+      <label class="form-label small fw-semibold" for="log_date_to">Đến ngày</label>
+      <input type="date" class="form-control" id="log_date_to" name="date_to" value="{{ filters.date_to or '' }}">
+    </div>
+    <div class="col-md-1 d-flex gap-1">
       <button type="submit" class="btn btn-outline-primary flex-grow-1">Lọc</button>
       <a href="{{ url_for('activity_log.activity_log_list_page') }}" class="btn btn-outline-secondary">Xóa</a>
     </div>

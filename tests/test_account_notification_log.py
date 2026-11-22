@@ -1,4 +1,5 @@
-"""Kiểm thử tự động cho luồng tài khoản, bảo mật, phân quyền, OTP, thông báo và activity log."""
+"""Kiểm thử tự động cho luồng tài khoản, bảo mật, CSRF, phân quyền, OTP, thông báo, database và activity log."""
+import logging
 import re
 
 import pytest
@@ -10,7 +11,7 @@ from app.models.activity_log import (
     get_activity_logs,
     update_activity_log,
 )
-from app.models.database import fetch_one
+from app.models.database import database_error, fetch_one, get_db_connection
 from app.models.notification import (
     create_notification,
     get_unread_notification_count,
@@ -44,6 +45,7 @@ def app(tmp_path):
     flask_app = create_app(
         {
             "TESTING": True,
+            "CSRF_ENABLED": True,
             "DATABASE_TYPE": "sqlite",
             "SQLITE_DB_PATH": str(db_file),
             "SECRET_KEY": "test-secret-key",
@@ -72,10 +74,28 @@ def client(app):
     return app.test_client()
 
 
+def _extract_csrf_token(client, page_url="/login"):
+    response = client.get(page_url)
+    match = re.search(rb'name="csrf_token"\s+value="([^"]+)"', response.data)
+    if match:
+        return match.group(1).decode("utf-8")
+    with client.session_transaction() as sess:
+        return sess.get("_csrf_token", "")
+
+
+def _post_with_csrf(client, url, data=None, token_source_url="/login", follow_redirects=False):
+    payload = dict(data or {})
+    if "csrf_token" not in payload:
+        payload["csrf_token"] = _extract_csrf_token(client, token_source_url)
+    return client.post(url, data=payload, follow_redirects=follow_redirects)
+
+
 def _login_via_client(client, username, password):
-    return client.post(
+    return _post_with_csrf(
+        client,
         "/login",
         data={"username": username, "password": password},
+        token_source_url="/login",
         follow_redirects=False,
     )
 
@@ -106,6 +126,41 @@ def test_no_self_registration_route(client):
     assert response.status_code == 404
 
 
+def test_static_app_js_served_and_contains_expected_handlers(client):
+    response = client.get("/static/js/app.js")
+    assert response.status_code == 200
+    assert b"data-toggle-password" in response.data
+    assert b"data-confirm-password-form" in response.data
+
+
+def test_csrf_protection_enforced_on_all_post_routes(app, client):
+    # Thiếu CSRF token khi POST -> 400 Bad Request
+    assert client.post("/login", data={"username": "admin_test", "password": "AdminPass123"}).status_code == 400
+    assert client.post("/forgot-password", data={"email": "admin.test@example.com"}).status_code == 400
+    assert client.post("/verify-otp", data={"email": "admin.test@example.com", "otp": "123456"}).status_code == 400
+    assert client.post("/reset-password", data={"new_password": "Abc12345"}).status_code == 400
+
+    # Sai CSRF token -> 400 Bad Request
+    client.get("/login")
+    assert (
+        client.post(
+            "/login",
+            data={"username": "admin_test", "password": "AdminPass123", "csrf_token": "invalid-token"},
+        ).status_code
+        == 400
+    )
+
+    # Đăng nhập hợp lệ và kiểm tra các route POST sau đăng nhập thiếu CSRF đều trả 400
+    assert _login_via_client(client, "admin_test", "AdminPass123").status_code == 302
+    assert client.post("/change-password", data={}).status_code == 400
+    assert client.post("/admin/users/create", data={}).status_code == 400
+    assert client.post("/admin/users/1/update", data={}).status_code == 400
+    assert client.post("/admin/users/1/status", data={"is_active": "0"}).status_code == 400
+    assert client.post("/notifications/read-all").status_code == 400
+    assert client.post("/notifications/1/read").status_code == 400
+    assert client.post("/logout").status_code == 400
+
+
 def test_admin_manage_student_lecturer_and_rbac(app, client):
     # Chưa đăng nhập bị từ chối truy cập trang quản trị
     assert client.get("/admin/users").status_code == 302
@@ -116,7 +171,8 @@ def test_admin_manage_student_lecturer_and_rbac(app, client):
     assert "/admin/users" in login_resp.headers["Location"]
 
     # Admin tạo Student và Lecturer
-    resp_student = client.post(
+    resp_student = _post_with_csrf(
+        client,
         "/admin/users/create",
         data={
             "username": "sv001",
@@ -125,13 +181,15 @@ def test_admin_manage_student_lecturer_and_rbac(app, client):
             "role": "student",
             "password": "InitPass123",
         },
+        token_source_url="/admin/users",
         follow_redirects=True,
     )
     assert resp_student.status_code == 200
     assert b"sv001" in resp_student.data
-    assert b"InitPass123" not in resp_student.data  # Không hiển thị mật khẩu chữ thường
+    assert b"InitPass123" not in resp_student.data
 
-    resp_lecturer = client.post(
+    resp_lecturer = _post_with_csrf(
+        client,
         "/admin/users/create",
         data={
             "username": "gv001",
@@ -140,6 +198,7 @@ def test_admin_manage_student_lecturer_and_rbac(app, client):
             "role": "lecturer",
             "password": "LectPass123",
         },
+        token_source_url="/admin/users",
         follow_redirects=True,
     )
     assert resp_lecturer.status_code == 200
@@ -148,41 +207,88 @@ def test_admin_manage_student_lecturer_and_rbac(app, client):
     with app.app_context():
         student = get_user_by_username("sv001")
         lecturer = get_user_by_username("gv001")
+        admin_user = get_user_by_username("admin_test")
+        second_admin = create_user(
+            {
+                "username": "admin_second",
+                "full_name": "Second Admin",
+                "email": "admin.second@example.com",
+                "role": "admin",
+                "password": "AdminPass123",
+                "must_change_password": False,
+            }
+        )
         assert student is not None and student["must_change_password"] is True
         assert lecturer is not None and lecturer["role"] == "lecturer"
         assert check_user_permission(student["user_id"], "student")
         assert not check_user_permission(student["user_id"], "admin")
 
+    # Kiểm tra ghi log thất bại khi tự khóa tài khoản hoặc thao tác khóa/mở khóa tài khoản Admin
+    _post_with_csrf(
+        client,
+        f"/admin/users/{admin_user['user_id']}/status",
+        data={"is_active": "0"},
+        token_source_url="/admin/users",
+    )
+    _post_with_csrf(
+        client,
+        f"/admin/users/{second_admin['user_id']}/status",
+        data={"is_active": "0"},
+        token_source_url="/admin/users",
+    )
+    with app.app_context():
+        failed_self_lock = [
+            entry
+            for entry in get_activity_logs({"action": "lock_user", "result": "failed"})
+            if str(entry["object_id"]) == str(admin_user["user_id"])
+        ]
+        failed_admin_lock = [
+            entry
+            for entry in get_activity_logs({"action": "lock_user", "result": "failed"})
+            if str(entry["object_id"]) == str(second_admin["user_id"])
+        ]
+        assert len(failed_self_lock) >= 1
+        assert len(failed_admin_lock) >= 1
+
     # Admin cập nhật Student
-    resp_update = client.post(
+    resp_update = _post_with_csrf(
+        client,
         f"/admin/users/{student['user_id']}/update",
         data={
             "full_name": "Tran Thi B Updated",
             "email": "sv001.new@example.com",
             "role": "student",
         },
+        token_source_url="/admin/users",
         follow_redirects=True,
     )
     assert resp_update.status_code == 200
     assert "Tran Thi B Updated".encode("utf-8") in resp_update.data
 
     # Admin khóa tài khoản Student
-    resp_lock = client.post(
+    resp_lock = _post_with_csrf(
+        client,
         f"/admin/users/{student['user_id']}/status",
         data={"is_active": "0"},
+        token_source_url="/admin/users",
         follow_redirects=True,
     )
     assert resp_lock.status_code == 200
 
     # Đăng xuất Admin, Student bị khóa không đăng nhập được
-    client.post("/logout")
+    _post_with_csrf(client, "/logout", token_source_url="/admin/users")
     locked_login = _login_via_client(client, "sv001", "InitPass123")
     assert locked_login.status_code == 401
 
     # Admin mở khóa lại Student
     _login_via_client(client, "admin_test", "AdminPass123")
-    client.post(f"/admin/users/{student['user_id']}/status", data={"is_active": "1"})
-    client.post("/logout")
+    _post_with_csrf(
+        client,
+        f"/admin/users/{student['user_id']}/status",
+        data={"is_active": "1"},
+        token_source_url="/admin/users",
+    )
+    _post_with_csrf(client, "/logout", token_source_url="/admin/users")
 
     # Student đăng nhập lần đầu -> bắt buộc đổi mật khẩu
     first_login = _login_via_client(client, "sv001", "InitPass123")
@@ -194,24 +300,28 @@ def test_admin_manage_student_lecturer_and_rbac(app, client):
     assert "/change-password" in client.get("/notifications").headers["Location"]
 
     # Đổi mật khẩu sai mật khẩu cũ -> lỗi
-    bad_change = client.post(
+    bad_change = _post_with_csrf(
+        client,
         "/change-password",
         data={
             "old_password": "WrongOld123",
             "new_password": "NewStudentPass123",
             "confirm_password": "NewStudentPass123",
         },
+        token_source_url="/change-password",
     )
     assert bad_change.status_code == 400
 
     # Đổi mật khẩu hợp lệ -> thành công
-    good_change = client.post(
+    good_change = _post_with_csrf(
+        client,
         "/change-password",
         data={
             "old_password": "InitPass123",
             "new_password": "NewStudentPass123",
             "confirm_password": "NewStudentPass123",
         },
+        token_source_url="/change-password",
         follow_redirects=False,
     )
     assert good_change.status_code == 302
@@ -219,7 +329,7 @@ def test_admin_manage_student_lecturer_and_rbac(app, client):
 
     # Student truy cập trang Admin -> 403 Forbidden
     assert client.get("/admin/users").status_code == 403
-    assert client.post("/admin/users/create", data={}).status_code == 403
+    assert _post_with_csrf(client, "/admin/users/create", data={}, token_source_url="/dashboard").status_code == 403
     assert client.get("/admin/activity-logs").status_code == 403
 
 
@@ -242,9 +352,11 @@ def test_forgot_password_otp_flow_and_security(app, client):
     assert "/verify-otp" in blocked_reset.headers["Location"]
 
     # Yêu cầu OTP
-    req_resp = client.post(
+    req_resp = _post_with_csrf(
+        client,
         "/forgot-password",
         data={"email": "sv.otp@example.com"},
+        token_source_url="/forgot-password",
         follow_redirects=False,
     )
     assert req_resp.status_code == 302
@@ -266,26 +378,32 @@ def test_forgot_password_otp_flow_and_security(app, client):
             reset_password("sv.otp@example.com", real_otp, "BrandNewPass123")
 
     # Nhập sai OTP -> thất bại
-    wrong_otp_resp = client.post(
+    wrong_otp_resp = _post_with_csrf(
+        client,
         "/verify-otp",
         data={"email": "sv.otp@example.com", "otp": "000000"},
+        token_source_url="/verify-otp",
     )
     assert wrong_otp_resp.status_code == 400
     assert real_otp.encode("utf-8") not in wrong_otp_resp.data
 
     # Nhập đúng OTP -> cho phép sang /reset-password
-    ok_otp_resp = client.post(
+    ok_otp_resp = _post_with_csrf(
+        client,
         "/verify-otp",
         data={"email": "sv.otp@example.com", "otp": real_otp},
+        token_source_url="/verify-otp",
         follow_redirects=False,
     )
     assert ok_otp_resp.status_code == 302
     assert "/reset-password" in ok_otp_resp.headers["Location"]
 
     # Đặt lại mật khẩu mới
-    reset_resp = client.post(
+    reset_resp = _post_with_csrf(
+        client,
         "/reset-password",
         data={"new_password": "ResetSuccess123", "confirm_password": "ResetSuccess123"},
+        token_source_url="/reset-password",
         follow_redirects=False,
     )
     assert reset_resp.status_code == 302
@@ -337,7 +455,7 @@ def test_notifications_all_four_events_and_ownership(app, client):
                 "must_change_password": False,
             }
         )
-        student2 = create_user(
+        create_user(
             {
                 "username": "sv_notif2",
                 "full_name": "Student Two",
@@ -385,9 +503,13 @@ def test_notifications_all_four_events_and_ownership(app, client):
 
     # Student 2 không được phép đánh dấu đã đọc thông báo của Student 1
     _login_via_client(client, "sv_notif2", "UserPass123")
-    forbidden_read = client.post(f"/notifications/{target_notif_id}/read")
+    forbidden_read = _post_with_csrf(
+        client,
+        f"/notifications/{target_notif_id}/read",
+        token_source_url="/notifications",
+    )
     assert forbidden_read.status_code == 403
-    client.post("/logout")
+    _post_with_csrf(client, "/logout", token_source_url="/notifications")
 
     # Student 1 xem và đánh dấu đã đọc
     _login_via_client(client, "sv_notif1", "UserPass123")
@@ -395,18 +517,22 @@ def test_notifications_all_four_events_and_ownership(app, client):
     assert page_resp.status_code == 200
     assert b"SE101" in page_resp.data
 
-    client.post(f"/notifications/{target_notif_id}/read")
+    _post_with_csrf(
+        client,
+        f"/notifications/{target_notif_id}/read",
+        token_source_url="/notifications",
+    )
     with app.app_context():
         assert get_unread_notification_count(student1["user_id"]) == 3
 
-    client.post("/notifications/read-all")
+    _post_with_csrf(client, "/notifications/read-all", token_source_url="/notifications")
     with app.app_context():
         assert get_unread_notification_count(student1["user_id"]) == 0
 
 
-def test_activity_log_recording_and_immutability(app, client):
+def test_activity_log_recording_date_to_filter_and_immutability(app, client):
     with app.app_context():
-        lecturer = create_user(
+        create_user(
             {
                 "username": "gv_log_test",
                 "full_name": "Lecturer Log",
@@ -420,15 +546,21 @@ def test_activity_log_recording_and_immutability(app, client):
     _login_via_client(client, "gv_log_test", "LectPass123")
     # Lecturer không được xem hoặc sửa/xóa log
     assert client.get("/admin/activity-logs").status_code == 403
-    assert client.post("/admin/activity-logs/1/edit").status_code == 403
-    assert client.post("/admin/activity-logs/1/delete").status_code == 403
-    client.post("/logout")
+    assert _post_with_csrf(client, "/admin/activity-logs/1/edit", token_source_url="/dashboard").status_code == 403
+    assert _post_with_csrf(client, "/admin/activity-logs/1/delete", token_source_url="/dashboard").status_code == 403
+    _post_with_csrf(client, "/logout", token_source_url="/dashboard")
 
-    # Admin xem được log
+    # Admin xem được log và giao diện có cả bộ lọc date_from và date_to
     _login_via_client(client, "admin_test", "AdminPass123")
-    logs_resp = client.get("/admin/activity-logs")
+    logs_resp = client.get("/admin/activity-logs?date_from=2020-01-01&date_to=2099-12-31")
     assert logs_resp.status_code == 200
     assert b"gv_log_test" in logs_resp.data
+    assert b'name="date_to"' in logs_resp.data
+
+    # Lọc với khoảng ngày quá khứ không có dữ liệu -> không hiển thị gv_log_test
+    empty_logs_resp = client.get("/admin/activity-logs?date_from=2000-01-01&date_to=2000-01-02")
+    assert empty_logs_resp.status_code == 200
+    assert b"gv_log_test" not in empty_logs_resp.data
 
     with app.app_context():
         logs = get_activity_logs({"username": "gv_log_test"})
@@ -441,6 +573,45 @@ def test_activity_log_recording_and_immutability(app, client):
             update_activity_log(1, {"result": "failed"})
         with pytest.raises(activity_log_error):
             delete_activity_log(1)
+
+
+def test_mysql_failure_does_not_fallback_to_sqlite(tmp_path):
+    sqlite_fallback_path = tmp_path / "should_not_exist.db"
+    with pytest.raises(database_error) as exc_info:
+        create_app(
+            {
+                "TESTING": True,
+                "DATABASE_TYPE": "mysql",
+                "MYSQL_HOST": "127.0.0.1",
+                "MYSQL_PORT": 39999,
+                "MYSQL_USER": "root",
+                "MYSQL_PASSWORD": "wrong-password-secret",
+                "MYSQL_DB": "student_attendance",
+                "SQLITE_DB_PATH": str(sqlite_fallback_path),
+            }
+        )
+    message = str(exc_info.value)
+    assert "MySQL" in message
+    assert "wrong-password-secret" not in message
+    assert not sqlite_fallback_path.exists()
+
+
+def test_app_startup_logs_optional_modules_and_registered_blueprints(tmp_path, caplog):
+    db_file = tmp_path / "log_check.db"
+    with caplog.at_level(logging.INFO):
+        flask_app = create_app(
+            {
+                "TESTING": True,
+                "DATABASE_TYPE": "sqlite",
+                "SQLITE_DB_PATH": str(db_file),
+                "SECRET_KEY": "test-secret-key",
+            }
+        )
+    assert set(["auth", "admin_users", "notification", "activity_log"]).issubset(flask_app.blueprints.keys())
+    log_text = caplog.text
+    assert "Academic" in log_text
+    assert "Schedule" in log_text
+    assert "init_account_system_tables" in log_text or "Đã khởi tạo các bảng hệ thống" in log_text
 
 
 def test_model_session_helpers_directly(app):
