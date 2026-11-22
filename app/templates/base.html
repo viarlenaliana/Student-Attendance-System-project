@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Student Attendance System{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+    <div class="container">
+      <a class="navbar-brand" href="{{ url_for('auth.home') }}">Student Attendance</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Mở menu">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="mainNavbar">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          {% if nav_user %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('auth.dashboard') }}">Tổng quan</a>
+            </li>
+            {% if nav_user.role == 'admin' %}
+              <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('admin_users.user_list_page') }}">Quản lý tài khoản</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('activity_log.activity_log_list_page') }}">Nhật ký hoạt động</a>
+              </li>
+              {% if has_endpoint('academic.student_list_page') %}
+                <li class="nav-item">
+                  <a class="nav-link" href="{{ url_for('academic.student_list_page') }}">Học vụ</a>
+                </li>
+              {% endif %}
+              {% if has_endpoint('schedule.schedule_list_page') %}
+                <li class="nav-item">
+                  <a class="nav-link" href="{{ url_for('schedule.schedule_list_page') }}">Lịch học</a>
+                </li>
+              {% endif %}
+            {% endif %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('notification.notification_list_page') }}">
+                Thông báo
+                {% if unread_notification_count > 0 %}
+                  <span class="badge bg-danger rounded-pill">{{ unread_notification_count }}</span>
+                {% endif %}
+              </a>
+            </li>
+          {% endif %}
+        </ul>
+
+        <div class="d-flex align-items-center gap-2">
+          {% if nav_user %}
+            <span class="text-white small me-2">
+              {{ nav_user.full_name }}
+              <span class="badge role-badge-{{ nav_user.role }} text-uppercase ms-1">{{ nav_user.role }}</span>
+            </span>
+            <a class="btn btn-sm btn-outline-light" href="{{ url_for('auth.change_password_page') }}">Đổi mật khẩu</a>
+            <form method="post" action="{{ url_for('auth.logout_action') }}" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm btn-light text-primary fw-semibold">Đăng xuất</button>
+            </form>
+          {% else %}
+            <a class="btn btn-sm btn-light text-primary fw-semibold" href="{{ url_for('auth.login_page') }}">Đăng nhập</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container py-4">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mb-3">
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="py-3 border-top bg-white text-center text-muted small">
+    Student Attendance System &middot; Group 04
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

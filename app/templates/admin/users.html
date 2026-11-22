@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% block title %}Quản lý tài khoản - Student Attendance System{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div>
+    <h1 class="h4 fw-bold mb-0">Quản lý tài khoản người dùng</h1>
+    <small class="text-muted">Tạo, cập nhật, khóa và mở khóa tài khoản Student / Lecturer</small>
+  </div>
+  <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
+    + Tạo tài khoản Student / Lecturer
+  </button>
+</div>
+
+<div class="surface-card p-3 mb-3">
+  <form method="get" action="{{ url_for('admin_users.user_list_page') }}" class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold" for="filter_keyword">Tìm kiếm</label>
+      <input
+        type="text"
+        class="form-control"
+        id="filter_keyword"
+        name="keyword"
+        value="{{ filters.keyword or '' }}"
+        placeholder="Tên đăng nhập, họ tên hoặc email"
+      >
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold" for="filter_role">Vai trò</label>
+      <select class="form-select" id="filter_role" name="role">
+        <option value="">Tất cả vai trò</option>
+        <option value="student" {% if filters.role == 'student' %}selected{% endif %}>Student</option>
+        <option value="lecturer" {% if filters.role == 'lecturer' %}selected{% endif %}>Lecturer</option>
+        <option value="admin" {% if filters.role == 'admin' %}selected{% endif %}>Admin</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold" for="filter_status">Trạng thái</label>
+      <select class="form-select" id="filter_status" name="status">
+        <option value="">Tất cả trạng thái</option>
+        <option value="active" {% if filters.status == 'active' %}selected{% endif %}>Đang hoạt động</option>
+        <option value="locked" {% if filters.status == 'locked' %}selected{% endif %}>Đã khóa</option>
+      </select>
+    </div>
+    <div class="col-md-2 d-flex gap-2">
+      <button type="submit" class="btn btn-outline-primary flex-grow-1">Lọc</button>
+      <a href="{{ url_for('admin_users.user_list_page') }}" class="btn btn-outline-secondary">Xóa</a>
+    </div>
+  </form>
+</div>
+
+<div class="surface-card p-3">
+  {% if users %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0" id="user_list_table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Tên đăng nhập</th>
+          <th>Họ và tên</th>
+          <th>Email</th>
+          <th>Vai trò</th>
+          <th>Trạng thái</th>
+          <th>Đổi MK lần đầu</th>
+          <th class="text-end">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user_item in users %}
+        <tr>
+          <td>{{ user_item.user_id }}</td>
+          <td><code>{{ user_item.username }}</code></td>
+          <td>{{ user_item.full_name }}</td>
+          <td>{{ user_item.email }}</td>
+          <td>
+            <span class="badge role-badge-{{ user_item.role }} text-uppercase">{{ user_item.role }}</span>
+          </td>
+          <td>
+            {% if user_item.is_active %}
+              <span class="badge bg-success">Hoạt động</span>
+            {% else %}
+              <span class="badge bg-danger">Đã khóa</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if user_item.must_change_password %}
+              <span class="badge bg-warning text-dark">Bắt buộc</span>
+            {% else %}
+              <span class="text-muted small">Đã đổi</span>
+            {% endif %}
+          </td>
+          <td class="text-end text-nowrap">
+            {% if user_item.role != 'admin' %}
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-primary me-1 edit-user-btn"
+                data-action="{{ url_for('admin_users.user_update_action', user_id=user_item.user_id) }}"
+                data-username="{{ user_item.username }}"
+                data-full-name="{{ user_item.full_name }}"
+                data-email="{{ user_item.email }}"
+                data-role="{{ user_item.role }}"
+              >
+                Cập nhật
+              </button>
+              <form method="post" action="{{ url_for('admin_users.user_status_action', user_id=user_item.user_id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% if user_item.is_active %}
+                  <input type="hidden" name="is_active" value="0">
+                  <button
+                    type="submit"
+                    class="btn btn-sm btn-outline-danger"
+                    onclick="return confirm('Khóa tài khoản {{ user_item.username | e }}?');"
+                  >
+                    Khóa
+                  </button>
+                {% else %}
+                  <input type="hidden" name="is_active" value="1">
+                  <button
+                    type="submit"
+                    class="btn btn-sm btn-outline-success"
+                    onclick="return confirm('Mở khóa tài khoản {{ user_item.username | e }}?');"
+                  >
+                    Mở khóa
+                  </button>
+                {% endif %}
+              </form>
+            {% else %}
+              <span class="text-muted small">Quản trị viên</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="text-muted mb-0">Không có tài khoản nào phù hợp với điều kiện lọc.</p>
+  {% endif %}
+</div>
+
+<!-- Modal tạo tài khoản Student / Lecturer -->
+<div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" action="{{ url_for('admin_users.user_create_action') }}" class="modal-content" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-header">
+        <h2 class="modal-title fs-5" id="createUserModalLabel">Tạo tài khoản mới</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="create_username">Tên đăng nhập *</label>
+          <input type="text" class="form-control" id="create_username" name="username" required placeholder="vd: sv22001 hoặc gv001">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="create_full_name">Họ và tên *</label>
+          <input type="text" class="form-control" id="create_full_name" name="full_name" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="create_email">Email *</label>
+          <input type="email" class="form-control" id="create_email" name="email" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="create_role">Vai trò *</label>
+          <select class="form-select" id="create_role" name="role" required>
+            <option value="student">Student</option>
+            <option value="lecturer">Lecturer</option>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label fw-semibold" for="create_password">Mật khẩu khởi tạo *</label>
+          <div class="input-group">
+            <input type="password" class="form-control" id="create_password" name="password" required>
+            <button type="button" class="btn btn-outline-secondary" data-toggle-password="create_password">Hiện</button>
+          </div>
+          <div class="form-text">Tối thiểu 8 ký tự, gồm chữ hoa, chữ thường và chữ số. Người dùng phải đổi ở lần đăng nhập đầu tiên.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+        <button type="submit" class="btn btn-primary">Tạo tài khoản</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal cập nhật tài khoản Student / Lecturer -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" id="editUserForm" class="modal-content" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-header">
+        <h2 class="modal-title fs-5" id="editUserModalLabel">Cập nhật tài khoản</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Tên đăng nhập</label>
+          <input type="text" class="form-control" id="edit_username" disabled>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="edit_full_name">Họ và tên *</label>
+          <input type="text" class="form-control" id="edit_full_name" name="full_name" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="edit_email">Email *</label>
+          <input type="email" class="form-control" id="edit_email" name="email" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="edit_role">Vai trò *</label>
+          <select class="form-select" id="edit_role" name="role" required>
+            <option value="student">Student</option>
+            <option value="lecturer">Lecturer</option>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label fw-semibold" for="edit_password">Đặt lại mật khẩu mới (tùy chọn)</label>
+          <div class="input-group">
+            <input type="password" class="form-control" id="edit_password" name="password" placeholder="Để trống nếu giữ nguyên mật khẩu hiện tại">
+            <button type="button" class="btn btn-outline-secondary" data-toggle-password="edit_password">Hiện</button>
+          </div>
+          <div class="form-text">Nếu đặt lại, tài khoản sẽ phải đổi mật khẩu ở lần đăng nhập tiếp theo.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+        <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    var editModalElement = document.getElementById("editUserModal");
+    if (!editModalElement) {
+      return;
+    }
+    var editModal = new bootstrap.Modal(editModalElement);
+    var editForm = document.getElementById("editUserForm");
+
+    document.querySelectorAll(".edit-user-btn").forEach(function (button) {
+      button.addEventListener("click", function () {
+        editForm.action = button.getAttribute("data-action");
+        document.getElementById("edit_username").value = button.getAttribute("data-username") || "";
+        document.getElementById("edit_full_name").value = button.getAttribute("data-full-name") || "";
+        document.getElementById("edit_email").value = button.getAttribute("data-email") || "";
+        document.getElementById("edit_role").value = button.getAttribute("data-role") || "student";
+        document.getElementById("edit_password").value = "";
+        editModal.show();
+      });
+    });
+  });
+</script>
+{% endblock %}
