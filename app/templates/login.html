@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Đăng nhập - UniAttend</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .login-box {
+            background: white;
+            padding: 35px;
+            border-radius: 14px;
+            width: 340px;
+            box-shadow: 0 5px 25px #0001;
+        }
+        h2 { text-align: center; color: #1e40af; }
+        input {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 12px;
+            margin: 9px 0 18px;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #2563eb;
+            color: white;
+            border: 0;
+            border-radius: 7px;
+            cursor: pointer;
+        }
+        .message { color: #dc2626; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h2>UniAttend</h2>
+        <p style="text-align:center">Student Attendance System</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <p class="message">{{ message }}</p>
+            {% endfor %}
+        {% endwith %}
+
+        <form method="POST">
+            <label>Tên đăng nhập</label>
+            <input type="text" name="username" required>
+
+            <label>Mật khẩu</label>
+            <input type="password" name="password" required>
+
+            <button type="submit">Đăng nhập</button>
+        </form>
+    </div>
+</body>
+</html>
