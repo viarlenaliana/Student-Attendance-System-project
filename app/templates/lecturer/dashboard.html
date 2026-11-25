@@ -1,0 +1,11 @@
+{% extends 'base.html' %}{% block title %}Lecturer Dashboard{% endblock %}{% block content %}
+<h1>Lecturer Dashboard</h1><p>Welcome, {{ session.get('full_name','Lecturer') }}.</p>
+<div class="dashboard-cards">
+ <div class="card card-blue"><p class="card-title">My Classes</p><h3 class="card-value">{{ section_count }}</h3></div>
+ <div class="card card-green"><p class="card-title">Enrolled Students</p><h3 class="card-value">{{ student_count }}</h3></div>
+ <div class="card card-purple"><p class="card-title">Active Sessions</p><h3 class="card-value">{{ active_session_count }}</h3></div>
+ <div class="card card-red"><p class="card-title">Total Sessions</p><h3 class="card-value">{{ session_count }}</h3></div>
+</div>
+<section class="content-section"><h2>Assigned Classes</h2><p><a href="{{ url_for('lecturer.sections') }}">View all classes →</a></p>
+{% if sections %}<ul>{% for section in sections %}<li><a href="{{ url_for('lecturer.section_detail',section_id=section.section_id) }}">{{ section.section_code }}</a> — {{ section.semester }} / {{ section.academic_year }}</li>{% endfor %}</ul>{% else %}<p>No classes have been assigned to your account yet.</p>{% endif %}</section>
+{% endblock %}

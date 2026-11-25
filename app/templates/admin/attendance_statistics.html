@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance Statistics | UniAttend{% endblock %}
+
+{% block content %}
+<style>
+    .stats-page{--ink:#172554;--muted:#718096;--line:#e8edf5;--surface:#fff;color:var(--ink);padding:8px 2px 28px}
+    .stats-page *{box-sizing:border-box}
+    .stats-hero{display:flex;justify-content:space-between;align-items:center;gap:18px;margin:4px 0 24px;flex-wrap:wrap}
+    .stats-kicker{font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#6476b9;margin-bottom:7px}
+    .stats-title{font-size:clamp(24px,2.4vw,32px);font-weight:800;letter-spacing:-.8px;margin:0;color:#172554}
+    .stats-subtitle{color:#7b879b;margin:7px 0 0;font-size:14px}
+    .stats-action{display:inline-flex;align-items:center;gap:9px;padding:11px 16px;border-radius:12px;background:#eef2ff;color:#405be5;text-decoration:none;font-weight:700;font-size:13px;border:1px solid #dfe5ff;transition:.2s}
+    .stats-action:hover{background:#405be5;color:#fff;transform:translateY(-1px)}
+    .stats-panel{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:0 8px 28px rgba(25,45,90,.055);margin-bottom:20px}
+    .filter-panel{padding:20px 22px}
+    .panel-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:17px}
+    .panel-heading h3{font-size:15px;font-weight:800;margin:0;color:#1e2d55}
+    .panel-heading p{font-size:12px;color:var(--muted);margin:4px 0 0}
+    .filter-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:14px}
+    .filter-field label{display:block;font-size:12px;font-weight:700;color:#52617d;margin:0 0 7px}
+    .filter-field input,.filter-field select{width:100%;height:43px;border:1px solid #e0e6f0;border-radius:10px;background:#fbfcff;padding:0 12px;color:#263653;font-size:13px;outline:none;transition:.2s}
+    .filter-field input:focus,.filter-field select:focus{border-color:#7188f5;box-shadow:0 0 0 3px rgba(83,107,235,.12);background:#fff}
+    .filter-actions{display:flex;align-items:center;gap:9px;margin-top:17px}
+    .filter-btn{border:0;border-radius:10px;background:#4965e9;color:white;padding:10px 17px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 5px 12px rgba(73,101,233,.2);transition:.2s}
+    .filter-btn:hover{background:#344fd0;transform:translateY(-1px)}
+    .reset-btn{display:inline-flex;align-items:center;padding:10px 14px;border:1px solid #e3e8f1;border-radius:10px;color:#68758d;text-decoration:none;font-size:13px;font-weight:600}
+    .reset-btn:hover{background:#f7f8fc;color:#34415c}
+    .stats-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px;margin-bottom:20px}
+    .metric-card{position:relative;overflow:hidden;background:#fff;border:1px solid var(--line);border-radius:16px;padding:17px 16px;box-shadow:0 7px 24px rgba(25,45,90,.045);min-height:126px}
+    .metric-card:after{content:"";position:absolute;width:76px;height:76px;border-radius:50%;right:-27px;top:-31px;background:var(--tint)}
+    .metric-top{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1}
+    .metric-label{font-size:12px;color:#77849a;font-weight:700}
+    .metric-icon{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:var(--tint);color:var(--accent);font-size:15px;font-weight:800}
+    .metric-value{font-size:29px;line-height:1;font-weight:800;letter-spacing:-1px;color:#1d2b50;margin-top:19px;position:relative;z-index:1}
+    .metric-note{font-size:11px;color:#9aa4b5;margin-top:7px;position:relative;z-index:1}
+    .rate-panel{padding:20px 22px;display:flex;align-items:center;justify-content:space-between;gap:22px;flex-wrap:wrap}
+    .rate-copy h3{font-size:15px;font-weight:800;margin:0 0 6px}
+    .rate-copy p{font-size:12px;color:var(--muted);margin:0;max-width:570px;line-height:1.6}
+    .rate-visual{display:flex;align-items:center;gap:15px}
+    .rate-ring{width:76px;height:76px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#18a879 calc(var(--rate)*1%),#edf1f6 0);position:relative;flex-shrink:0}
+    .rate-ring:before{content:"";position:absolute;inset:7px;background:white;border-radius:50%}
+    .rate-ring span{position:relative;font-size:14px;font-weight:800;color:#1d2b50}
+    .rate-legend{font-size:12px;color:#738097;line-height:1.7}
+    .rate-legend strong{display:block;font-size:15px;color:#1d2b50}
+    .table-panel{overflow:hidden}
+    .table-head{padding:19px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .table-head h3{font-size:15px;font-weight:800;margin:0}
+    .table-head span{font-size:11px;color:#8792a5;background:#f4f6fb;padding:6px 10px;border-radius:20px}
+    .stats-table-wrap{overflow-x:auto}
+    .stats-table{width:100%;border-collapse:separate;border-spacing:0;min-width:760px}
+    .stats-table thead th{background:#f8faff;color:#8792a5;font-size:10px;text-transform:uppercase;letter-spacing:.7px;font-weight:800;padding:13px 16px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+    .stats-table tbody td{padding:15px 16px;border-bottom:1px solid #f0f2f7;font-size:12px;color:#53617a;vertical-align:middle}
+    .stats-table tbody tr:last-child td{border-bottom:0}
+    .stats-table tbody tr:hover{background:#fbfcff}
+    .course-code{font-weight:800;color:#26375e;font-size:13px}
+    .course-name{font-size:11px;color:#929caf;margin-top:4px}
+    .section-pill{display:inline-block;background:#eef2ff;color:#5368d9;padding:5px 9px;border-radius:7px;font-size:11px;font-weight:700}
+    .status-number{font-weight:800;font-size:13px}
+    .status-present{color:#15966b!important}.status-late{color:#d58b18!important}.status-absent{color:#df5b67!important}.status-excused{color:#4389c9!important}
+    .rate-cell{min-width:145px}.rate-line{display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:#52617d;margin-bottom:7px}
+    .mini-track{height:6px;background:#edf1f6;border-radius:10px;overflow:hidden}.mini-fill{height:100%;border-radius:10px;background:linear-gradient(90deg,#18a879,#50c99b)}
+    .empty-state{text-align:center!important;padding:42px 16px!important;color:#98a2b3!important}
+    .empty-icon{font-size:26px;display:block;margin-bottom:8px;color:#b4bfd0}
+    @media(max-width:1250px){.stats-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media(max-width:850px){.filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:560px){.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.metric-card{padding:14px;min-height:112px}.metric-value{font-size:25px}.filter-grid{grid-template-columns:1fr}.filter-panel,.rate-panel{padding:17px}.table-head{padding:16px}}
+</style>
+
+<div class="stats-page">
+    <div class="stats-hero">
+        <div>
+            <div class="stats-kicker">Admin workspace / Analytics</div>
+            <h1 class="stats-title">Attendance Statistics</h1>
+            <p class="stats-subtitle">A clear overview of student attendance and class performance.</p>
+        </div>
+        <a href="{{ url_for('admin.attendance_monitoring') }}" class="stats-action"><span>↗</span> View Attendance Monitoring</a>
+    </div>
+
+    <section class="stats-panel filter-panel">
+        <div class="panel-heading">
+            <div><h3>Filter statistics</h3><p>Choose a date range, class section or attendance method.</p></div>
+            <span style="font-size:20px;color:#8b9af0">⌕</span>
+        </div>
+        <form method="GET">
+            <div class="filter-grid">
+                <div class="filter-field"><label for="date_from">From date</label><input id="date_from" type="date" name="date_from" value="{{ date_from }}"></div>
+                <div class="filter-field"><label for="date_to">To date</label><input id="date_to" type="date" name="date_to" value="{{ date_to }}"></div>
+                <div class="filter-field"><label for="section_id">Course section</label><select id="section_id" name="section_id"><option value="">All sections</option>{% for section, course in sections %}<option value="{{ section.section_id }}" {% if selected_section|string == section.section_id|string %}selected{% endif %}>{{ course.course_code }} — {{ section.section_code }}</option>{% endfor %}</select></div>
+                <div class="filter-field"><label for="method">Attendance method</label><select id="method" name="method"><option value="">All methods</option><option value="QR_CODE" {% if selected_method == 'QR_CODE' %}selected{% endif %}>QR Code</option><option value="PASSWORD" {% if selected_method == 'PASSWORD' %}selected{% endif %}>Password</option><option value="QR_PASSWORD" {% if selected_method == 'QR_PASSWORD' %}selected{% endif %}>QR + Password</option><option value="MANUAL" {% if selected_method == 'MANUAL' %}selected{% endif %}>Manual</option></select></div>
+            </div>
+            <div class="filter-actions"><button type="submit" class="filter-btn">Apply filters&nbsp; →</button><a href="{{ url_for('admin.attendance_statistics') }}" class="reset-btn">Reset</a></div>
+        </form>
+    </section>
+
+    <div class="stats-grid">
+        <div class="metric-card" style="--accent:#5268e8;--tint:#eef0ff"><div class="metric-top"><span class="metric-label">Total records</span><span class="metric-icon">▤</span></div><div class="metric-value">{{ total }}</div><div class="metric-note">All attendance entries</div></div>
+        <div class="metric-card" style="--accent:#15966b;--tint:#e7f8f1"><div class="metric-top"><span class="metric-label">Present</span><span class="metric-icon">✓</span></div><div class="metric-value">{{ present }}</div><div class="metric-note">Successfully attended</div></div>
+        <div class="metric-card" style="--accent:#d58b18;--tint:#fff5df"><div class="metric-top"><span class="metric-label">Late</span><span class="metric-icon">◷</span></div><div class="metric-value">{{ late }}</div><div class="metric-note">Checked in late</div></div>
+        <div class="metric-card" style="--accent:#df5b67;--tint:#fff0f1"><div class="metric-top"><span class="metric-label">Absent</span><span class="metric-icon">×</span></div><div class="metric-value">{{ absent }}</div><div class="metric-note">Did not attend</div></div>
+        <div class="metric-card" style="--accent:#4389c9;--tint:#eaf4ff"><div class="metric-top"><span class="metric-label">Excused</span><span class="metric-icon">ⓘ</span></div><div class="metric-value">{{ excused }}</div><div class="metric-note">Approved absence</div></div>
+        <div class="metric-card" style="--accent:#15966b;--tint:#e7f8f1"><div class="metric-top"><span class="metric-label">Attendance rate</span><span class="metric-icon">％</span></div><div class="metric-value">{{ attendance_rate }}<small style="font-size:15px">%</small></div><div class="metric-note">Present + Late</div></div>
+    </div>
+
+    <section class="stats-panel rate-panel">
+        <div class="rate-copy"><h3>Overall attendance rate</h3><p>Calculated as (Present + Late) ÷ Total Records. Excused records are excluded from the attendance numerator.</p></div>
+        <div class="rate-visual"><div class="rate-ring" style="--rate:{{ attendance_rate }}"><span>{{ attendance_rate }}%</span></div><div class="rate-legend"><strong>{{ present + late }} attended</strong>out of {{ total }} records</div></div>
+    </section>
+
+    <section class="stats-panel table-panel">
+        <div class="table-head"><div><h3>Statistics by course section</h3><div style="font-size:12px;color:#8b96a9;margin-top:5px">Attendance breakdown for each class section</div></div><span>{{ course_statistics|length }} section(s)</span></div>
+        <div class="stats-table-wrap"><table class="stats-table">
+            <thead><tr><th>Course</th><th>Section</th><th>Total</th><th>Present</th><th>Late</th><th>Absent</th><th>Excused</th><th>Attendance rate</th></tr></thead>
+            <tbody>
+            {% for item in course_statistics %}
+                {% set rate = ((item.present + item.late) * 100 / item.total)|round(1) if item.total else 0 %}
+                <tr>
+                    <td><div class="course-code">{{ item.course_code }}</div><div class="course-name">{{ item.course_name }}</div></td>
+                    <td><span class="section-pill">{{ item.section_code }}</span></td>
+                    <td><strong>{{ item.total }}</strong></td>
+                    <td class="status-number status-present">{{ item.present }}</td><td class="status-number status-late">{{ item.late }}</td><td class="status-number status-absent">{{ item.absent }}</td><td class="status-number status-excused">{{ item.excused }}</td>
+                    <td class="rate-cell"><div class="rate-line"><span>Attendance</span><span>{{ rate }}%</span></div><div class="mini-track"><div class="mini-fill" style="width:{{ rate }}%"></div></div></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="8" class="empty-state"><span class="empty-icon">▤</span><strong>No attendance data yet</strong><br><span style="font-size:11px">Records will appear here after attendance sessions are completed.</span></td></tr>
+            {% endfor %}
+            </tbody>
+        </table></div>
+    </section>
+</div>
+{% endblock %}

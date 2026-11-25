@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xác minh OTP | UniAttend</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body class="login-page">
+
+    <div class="login-layout">
+
+        <section class="login-intro">
+            <a href="{{ url_for('auth.login') }}" class="brand login-brand">
+                <span class="brand-mark">U</span>
+                <span class="brand-copy">
+                    <strong>UniAttend</strong>
+                    <small>ATTENDANCE PORTAL</small>
+                </span>
+            </a>
+
+            <div class="intro-copy">
+                <span class="eyebrow">SECURITY VERIFICATION</span>
+                <h1>One more<br>step to<br><span>your account.</span></h1>
+                <p>
+                    Verify your identity with the one-time
+                    verification code sent to your registered email.
+                </p>
+            </div>
+
+            <div class="intro-bottom">
+                © 2026 UniAttend. All rights reserved.
+            </div>
+        </section>
+
+
+        <section class="login-panel-wrap">
+
+            <div class="login-box">
+
+                <div class="login-heading">
+                    <div class="login-icon">✉</div>
+                    <div class="eyebrow">EMAIL VERIFICATION</div>
+                    <h2>Enter verification code</h2>
+                    <p class="login-subtitle">
+                        Enter the 6-digit OTP sent to your email.
+                        The code expires in 5 minutes.
+                    </p>
+                </div>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <div class="flash-list">
+                            {% for category, message in messages %}
+                                <div class="flash-message flash-{{ category }}">
+                                    {{ message }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+
+                <form method="POST" class="login-form">
+
+                    <label for="otp">Verification code</label>
+
+                    <input
+                        type="text"
+                        id="otp"
+                        name="otp"
+                        placeholder="000000"
+                        inputmode="numeric"
+                        pattern="[0-9]{6}"
+                        maxlength="6"
+                        autocomplete="one-time-code"
+                        required
+                    >
+
+                    <button type="submit">
+                        Verify code
+                        <span aria-hidden="true">→</span>
+                    </button>
+
+                </form>
+
+                <div class="auth-back-link">
+                    <a href="{{ url_for('auth.forgot_password') }}">
+                        Request another code
+                    </a>
+                </div>
+
+            </div>
+
+            <div class="login-copyright">
+                UniAttend · Student Attendance Management System
+            </div>
+
+        </section>
+
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+
+<div class="admin-page">
+
+    <div class="admin-heading">
+        <div>
+            <span class="eyebrow">SYSTEM MANAGEMENT</span>
+            <h2>Admin Dashboard</h2>
+            <p>Welcome to UniAttend administration workspace.</p>
+        </div>
+
+        <div class="admin-date">
+            <span>ADMINISTRATOR</span>
+            <strong>System Overview</strong>
+        </div>
+    </div>
+
+    <div class="admin-stats">
+
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon blue">♙</div>
+            <p>Total Accounts</p>
+            <h3>{{ total_users }}</h3>
+            <span>All registered users</span>
+        </div>
+
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon green">♧</div>
+            <p>Students</p>
+            <h3>{{ total_students }}</h3>
+            <span>Student accounts</span>
+        </div>
+
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon purple">♙</div>
+            <p>Lecturers</p>
+            <h3>{{ total_lecturers }}</h3>
+            <span>Lecturer accounts</span>
+        </div>
+
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon orange">▤</div>
+            <p>Courses</p>
+            <h3>{{ total_courses }}</h3>
+            <span>Available courses</span>
+        </div>
+
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon blue">▦</div>
+            <p>Course Sections</p>
+            <h3>{{ total_sections }}</h3>
+            <span>Registered sections</span>
+        </div>
+
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon green">◷</div>
+            <p>Attendance Sessions</p>
+            <h3>{{ total_sessions }}</h3>
+            <span>Total sessions</span>
+        </div>
+
+    </div>
+
+
+    <div class="admin-overview-grid">
+
+        <section class="admin-panel">
+            <div class="admin-panel-heading">
+                <div>
+                    <h3>Account Overview</h3>
+                    <p>Current account status</p>
+                </div>
+            </div>
+
+            <div class="account-overview">
+
+                <div class="overview-item">
+                    <span class="overview-dot active-dot"></span>
+                    <span>Active Accounts</span>
+                    <strong>{{ active_users }}</strong>
+                </div>
+
+                <div class="overview-item">
+                    <span class="overview-dot locked-dot"></span>
+                    <span>Locked Accounts</span>
+                    <strong>{{ locked_users }}</strong>
+                </div>
+
+            </div>
+        </section>
+
+
+        <section class="admin-panel">
+            <div class="admin-panel-heading">
+                <div>
+                    <h3>Quick Information</h3>
+                    <p>System summary</p>
+                </div>
+            </div>
+
+            <div class="quick-info">
+                <div>
+                    <span>System</span>
+                    <strong>UniAttend</strong>
+                </div>
+
+                <div>
+                    <span>Module</span>
+                    <strong>Administration</strong>
+                </div>
+
+                <div>
+                    <span>Access Level</span>
+                    <strong>Administrator</strong>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+
+    <section class="admin-panel recent-users">
+
+        <div class="admin-panel-heading">
+            <div>
+                <h3>Recently Created Accounts</h3>
+                <p>Latest registered user accounts</p>
+            </div>
+        </div>
+
+        <div class="admin-table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Full Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Created At</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for user in recent_users %}
+                    <tr>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.full_name }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            <span class="admin-role">
+                                {{ user.role }}
+                            </span>
+                        </td>
+                        <td>
+                            {{ user.created_at.strftime('%d/%m/%Y') if user.created_at else '-' }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="admin-empty">
+                            No accounts found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+
+    </section>
+
+</div>
+
+{% endblock %}

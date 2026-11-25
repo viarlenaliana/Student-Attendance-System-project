@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Course Sections{% endblock %}
+
+{% block content %}
+<style>
+.section-page{color:#1e293b}.section-page h2{font-size:26px;margin:0 0 6px}.section-muted{color:#64748b;margin:0 0 22px}.section-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:22px;margin-bottom:22px;box-shadow:0 4px 15px rgba(15,23,42,.04)}.section-card h3{margin:0 0 18px;font-size:18px}.section-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 20px}.section-field{display:flex;flex-direction:column;gap:7px}.section-field.full{grid-column:1/-1}.section-field label{font-size:13px;font-weight:700;color:#334155}.section-field input,.section-field select{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font-size:14px}.section-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.section-btn{border:0;border-radius:8px;padding:10px 15px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block}.section-primary{background:#2563eb;color:#fff}.section-edit{background:#eff6ff;color:#1d4ed8}.section-delete{background:#fef2f2;color:#b91c1c}.section-table-wrap{overflow-x:auto}.section-table{width:100%;border-collapse:collapse;min-width:850px}.section-table th,.section-table td{padding:13px 12px;text-align:left;border-bottom:1px solid #e2e8f0;font-size:13px;vertical-align:middle}.section-table th{color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.04em;background:#f8fafc}.section-table td strong{color:#0f172a}.section-badge{padding:5px 9px;border-radius:20px;font-size:11px;font-weight:800}.badge-active{background:#dcfce7;color:#166534}.badge-inactive{background:#fee2e2;color:#991b1b}.edit-details summary{cursor:pointer;color:#1d4ed8;font-weight:700;white-space:nowrap}.edit-panel{min-width:270px;padding:12px;margin-top:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px}.edit-panel .section-field{margin-bottom:10px}.section-empty{text-align:center;color:#64748b;padding:30px}@media(max-width:700px){.section-grid{grid-template-columns:1fr}.section-field.full{grid-column:auto}.section-card{padding:16px}}
+</style>
+
+<div class="section-page">
+    <h2>Course Sections</h2>
+    <p class="section-muted">Create and manage course sections, assign lecturers, and set semester information.</p>
+
+    <section class="section-card">
+        <h3>＋ Create Course Section</h3>
+        {% if not courses %}
+            <p class="section-muted">Please create a course first before adding a section.</p>
+        {% elif not lecturers %}
+            <p class="section-muted">There are no active lecturer accounts available.</p>
+        {% else %}
+        <form method="POST" action="{{ url_for('admin.create_course_section') }}">
+            <div class="section-grid">
+                <div class="section-field"><label>Course *</label><select name="course_id" required><option value="">Select course</option>{% for course in courses %}<option value="{{ course.course_id }}">{{ course.course_code }} - {{ course.course_name }}</option>{% endfor %}</select></div>
+                <div class="section-field"><label>Lecturer *</label><select name="lecturer_id" required><option value="">Select lecturer</option>{% for lecturer in lecturers %}<option value="{{ lecturer.user_id }}">{{ lecturer.full_name }} (ID: {{ lecturer.user_id }})</option>{% endfor %}</select></div>
+                <div class="section-field"><label>Section Code *</label><input name="section_code" maxlength="50" placeholder="e.g. SE-01" required></div>
+                <div class="section-field"><label>Semester *</label><input name="semester" maxlength="30" placeholder="e.g. Semester 1" required></div>
+                <div class="section-field"><label>Academic Year *</label><input name="academic_year" maxlength="20" placeholder="e.g. 2026-2027" required></div>
+                <div class="section-field"><label>Maximum Students</label><input type="number" name="max_students" min="1" placeholder="Leave blank if unlimited"></div>
+                <div class="section-field"><label>Status</label><select name="status"><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select></div>
+            </div>
+            <div class="section-actions" style="margin-top:20px"><button class="section-btn section-primary" type="submit">Create Section</button></div>
+        </form>
+        {% endif %}
+    </section>
+
+    <section class="section-card">
+        <h3>Course Section List <span style="color:#64748b;font-size:13px;font-weight:500">({{ sections|length }} total)</span></h3>
+        <div class="section-table-wrap">
+            <table class="section-table">
+                <thead><tr><th>Section</th><th>Course</th><th>Lecturer</th><th>Semester</th><th>Academic Year</th><th>Max Students</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody>
+                {% for section, course, lecturer in sections %}
+                    <tr>
+                        <td><strong>{{ section.section_code }}</strong><br><small style="color:#64748b">ID: {{ section.section_id }}</small></td>
+                        <td>{{ course.course_code }}<br><small style="color:#64748b">{{ course.course_name }}</small></td>
+                        <td>{{ lecturer.full_name }}</td>
+                        <td>{{ section.semester }}</td>
+                        <td>{{ section.academic_year }}</td>
+                        <td>{{ section.max_students if section.max_students else '—' }}</td>
+                        <td><span class="section-badge {{ 'badge-active' if section.status == 'ACTIVE' else 'badge-inactive' }}">{{ section.status }}</span></td>
+                        <td>
+                            <div class="section-actions">
+                                <details class="edit-details"><summary>Edit</summary>
+                                    <form class="edit-panel" method="POST" action="{{ url_for('admin.update_course_section', section_id=section.section_id) }}">
+                                        <div class="section-field"><label>Course</label><select name="course_id" required>{% for item in courses %}<option value="{{ item.course_id }}" {% if item.course_id == section.course_id %}selected{% endif %}>{{ item.course_code }} - {{ item.course_name }}</option>{% endfor %}</select></div>
+                                        <div class="section-field"><label>Lecturer</label><select name="lecturer_id" required>{% for item in lecturers %}<option value="{{ item.user_id }}" {% if item.user_id == section.lecturer_id %}selected{% endif %}>{{ item.full_name }}</option>{% endfor %}</select></div>
+                                        <div class="section-field"><label>Section Code</label><input name="section_code" value="{{ section.section_code }}" required></div>
+                                        <div class="section-field"><label>Semester</label><input name="semester" value="{{ section.semester }}" required></div>
+                                        <div class="section-field"><label>Academic Year</label><input name="academic_year" value="{{ section.academic_year }}" required></div>
+                                        <div class="section-field"><label>Maximum Students</label><input type="number" name="max_students" min="1" value="{{ section.max_students or '' }}"></div>
+                                        <div class="section-field"><label>Status</label><select name="status"><option value="ACTIVE" {% if section.status == 'ACTIVE' %}selected{% endif %}>Active</option><option value="INACTIVE" {% if section.status == 'INACTIVE' %}selected{% endif %}>Inactive</option></select></div>
+                                        <button class="section-btn section-primary" type="submit">Save Changes</button>
+                                    </form>
+                                </details>
+                                <form method="POST" action="{{ url_for('admin.delete_course_section', section_id=section.section_id) }}" onsubmit="return confirm('Delete this course section? This may fail if schedules or enrollments are linked.');">
+                                    <button class="section-btn section-delete" type="submit">Delete</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="8" class="section-empty">No course sections found. Create your first section above.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Enrollment Management{% endblock %}
+{% block content %}
+<style>
+.enroll-page{color:#1e293b}.enroll-page h2{font-size:26px;margin:0 0 6px}.enroll-muted{color:#64748b;margin:0 0 22px}.enroll-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:22px;margin-bottom:22px;box-shadow:0 4px 15px rgba(15,23,42,.04)}.enroll-card h3{margin:0 0 18px;font-size:19px}.enroll-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 20px}.enroll-field{display:flex;flex-direction:column;gap:7px}.enroll-field label{font-size:13px;font-weight:700;color:#334155}.enroll-field input,.enroll-field select{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font:inherit}.enroll-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:18px}.enroll-btn{border:0;border-radius:8px;padding:10px 15px;font-weight:700;font-size:13px;cursor:pointer;text-decoration:none;display:inline-block}.enroll-primary{background:#2563eb;color:#fff}.enroll-light{background:#e2e8f0;color:#334155}.enroll-activate{background:#dcfce7;color:#166534}.enroll-deactivate{background:#fee2e2;color:#991b1b}.enroll-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:22px}.enroll-stat{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px}.enroll-stat span{display:block;color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase}.enroll-stat strong{display:block;font-size:25px;margin-top:5px;color:#1e3a8a}.enroll-search{display:grid;grid-template-columns:2fr 1fr 1fr auto auto;gap:10px;margin-bottom:18px}.enroll-search input,.enroll-search select{min-width:0;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font:inherit}.enroll-table-wrap{overflow-x:auto}.enroll-table{width:100%;border-collapse:collapse;min-width:900px}.enroll-table th,.enroll-table td{padding:13px 12px;text-align:left;border-bottom:1px solid #e2e8f0;font-size:13px;vertical-align:middle}.enroll-table th{color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.04em;background:#f8fafc}.enroll-table td strong{color:#0f172a}.enroll-badge{padding:5px 9px;border-radius:20px;font-size:11px;font-weight:800}.enroll-active{background:#dcfce7;color:#166534}.enroll-inactive{background:#fee2e2;color:#991b1b}.enroll-empty{text-align:center;color:#64748b;padding:30px!important}.enroll-capacity{color:#64748b;font-size:12px;margin-top:5px}
+@media(max-width:850px){.enroll-search{grid-template-columns:1fr 1fr}.enroll-search input{grid-column:1/-1}}@media(max-width:650px){.enroll-grid,.enroll-stats,.enroll-search{grid-template-columns:1fr}.enroll-card{padding:16px}}
+</style>
+<div class="enroll-page">
+  <h2>Enrollment Management</h2>
+  <p class="enroll-muted">Enroll students in active course sections and manage their enrollment status.</p>
+
+  <div class="enroll-stats">
+    <div class="enroll-stat"><span>Active Enrollments</span><strong>{{ active_count }}</strong></div>
+    <div class="enroll-stat"><span>Inactive Enrollments</span><strong>{{ inactive_count }}</strong></div>
+    <div class="enroll-stat"><span>Available Students</span><strong>{{ students|length }}</strong></div>
+  </div>
+
+  <section class="enroll-card">
+    <h3>＋ Create Enrollment</h3>
+    {% if not students %}
+      <p class="enroll-muted">No active student accounts are available. Create or activate a student account first.</p>
+    {% elif not sections %}
+      <p class="enroll-muted">No active course sections are available. Create an active course section first.</p>
+    {% else %}
+    <form method="POST" action="{{ url_for('admin.create_enrollment') }}">
+      <div class="enroll-grid">
+        <div class="enroll-field"><label for="student_id">Student *</label><select id="student_id" name="student_id" required><option value="">Select student</option>{% for student, user in students %}<option value="{{ student.student_id }}">{{ user.full_name }} — {{ student.student_code }}</option>{% endfor %}</select></div>
+        <div class="enroll-field"><label for="section_id">Course Section *</label><select id="section_id" name="section_id" required><option value="">Select course section</option>{% for section in sections %}{% set used = section_counts.get(section.section_id, 0) %}<option value="{{ section.section_id }}" {% if section.max_students is not none and used >= section.max_students %}disabled{% endif %}>{{ section.section_code }} — {{ section.semester }}{% if section.max_students %} ({{ used }}/{{ section.max_students }}){% endif %}</option>{% endfor %}</select></div>
+      </div>
+      <div class="enroll-actions"><button class="enroll-btn enroll-primary" type="submit">Enroll Student</button></div>
+    </form>
+    {% endif %}
+  </section>
+
+  <section class="enroll-card">
+    <h3>Enrollment List <span style="color:#64748b;font-size:13px;font-weight:500">({{ enrollments|length }} records)</span></h3>
+    <form method="GET" action="{{ url_for('admin.enrollments') }}" class="enroll-search">
+      <input name="keyword" value="{{ keyword }}" placeholder="Search student, code, course or section...">
+      <select name="section_id"><option value="">All sections</option>{% for section in sections %}<option value="{{ section.section_id }}" {% if selected_section_id == section.section_id %}selected{% endif %}>{{ section.section_code }}</option>{% endfor %}</select>
+      <select name="status"><option value="">All statuses</option><option value="ACTIVE" {% if selected_status == 'ACTIVE' %}selected{% endif %}>Active</option><option value="INACTIVE" {% if selected_status == 'INACTIVE' %}selected{% endif %}>Inactive</option></select>
+      <button class="enroll-btn enroll-primary" type="submit">Filter</button>
+      <a class="enroll-btn enroll-light" href="{{ url_for('admin.enrollments') }}">Clear</a>
+    </form>
+    <div class="enroll-table-wrap"><table class="enroll-table">
+      <thead><tr><th>Student</th><th>Student Code</th><th>Course</th><th>Course Section</th><th>Semester</th><th>Enrolled At</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>
+      {% for enrollment, student, user, section, course in enrollments %}
+        <tr>
+          <td><strong>{{ user.full_name }}</strong><br><small style="color:#64748b">User ID: {{ user.user_id }}</small></td>
+          <td>{{ student.student_code }}</td>
+          <td><strong>{{ course.course_code }}</strong><br><small style="color:#64748b">{{ course.course_name }}</small></td>
+          <td>{{ section.section_code }}</td>
+          <td>{{ section.semester }}<br><small style="color:#64748b">{{ section.academic_year }}</small></td>
+          <td>{{ enrollment.enrolled_at.strftime('%d/%m/%Y %H:%M') if enrollment.enrolled_at else '—' }}</td>
+          <td><span class="enroll-badge {{ 'enroll-active' if enrollment.status == 'ACTIVE' else 'enroll-inactive' }}">{{ enrollment.status }}</span></td>
+          <td>
+            <form method="POST" action="{{ url_for('admin.update_enrollment_status', enrollment_id=enrollment.enrollment_id) }}" onsubmit="return confirm('Are you sure you want to {{ 'deactivate' if enrollment.status == 'ACTIVE' else 'reactivate' }} this enrollment?');">
+              {% if enrollment.status == 'ACTIVE' %}<input type="hidden" name="status" value="INACTIVE"><button class="enroll-btn enroll-deactivate" type="submit">Deactivate</button>{% else %}<input type="hidden" name="status" value="ACTIVE"><button class="enroll-btn enroll-activate" type="submit">Reactivate</button>{% endif %}
+            </form>
+          </td>
+        </tr>
+      {% else %}<tr><td colspan="8" class="enroll-empty">No enrollments found. Use the form above to enroll a student.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </section>
+</div>
+{% endblock %}

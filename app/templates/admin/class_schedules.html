@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Class Schedules{% endblock %}
+{% block content %}
+<style>
+.schedule-page{max-width:1200px;margin:0 auto}.schedule-card{background:#fff;border:1px solid #e7eaf2;border-radius:16px;padding:22px;margin:18px 0;box-shadow:0 5px 20px rgba(16,27,63,.04)}
+.schedule-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}.schedule-grid label{display:block;font-weight:600;margin-bottom:6px;color:#34405e}.schedule-grid input,.schedule-grid select{width:100%;padding:11px;border:1px solid #d9deea;border-radius:9px;font:inherit}
+.schedule-btn{border:0;border-radius:9px;padding:10px 16px;background:#243b80;color:#fff;font-weight:700;cursor:pointer}.schedule-btn.delete{background:#b42318}.schedule-table-wrap{overflow-x:auto}.schedule-table{width:100%;border-collapse:collapse;min-width:850px}.schedule-table th,.schedule-table td{padding:12px;border-bottom:1px solid #edf0f5;text-align:left}.schedule-table th{background:#f6f8fc;color:#34405e}.schedule-table input,.schedule-table select{max-width:145px;padding:7px;border:1px solid #d9deea;border-radius:7px}.schedule-actions{display:flex;gap:8px;align-items:center}.muted{color:#69758d}
+</style>
+<div class="schedule-page">
+    <h1>Class Schedule Management</h1>
+    <p class="muted">Create and manage weekly schedules for active course sections.</p>
+
+    <section class="schedule-card">
+        <h2>Create Class Schedule</h2>
+        {% if not sections %}
+            <p class="muted">No active course sections are available. Create an active course section first.</p>
+        {% else %}
+        <form method="POST" action="{{ url_for('admin.create_class_schedule') }}">
+            <div class="schedule-grid">
+                <div><label>Course Section *</label>
+                    <select name="section_id" required>
+                        <option value="">Select section</option>
+                        {% for section, course, lecturer, user in sections %}
+                        <option value="{{ section.section_id }}">{{ section.section_code }} — {{ course.course_code }} / {{ course.course_name }} ({{ user.full_name }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div><label>Day *</label>
+                    <select name="day_of_week" required>
+                        <option value="">Select day</option>
+                        {% for day, name in day_names.items() %}<option value="{{ day }}">{{ name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div><label>Start Time *</label><input type="time" name="start_time" required></div>
+                <div><label>End Time *</label><input type="time" name="end_time" required></div>
+                <div><label>Room</label><input name="room" maxlength="50" placeholder="e.g. A101"></div>
+                <div><label>Effective From *</label><input type="date" name="effective_from" required></div>
+                <div><label>Effective To *</label><input type="date" name="effective_to" required></div>
+            </div>
+            <p><button class="schedule-btn" type="submit">＋ Add Schedule</button></p>
+        </form>
+        {% endif %}
+    </section>
+
+    <section class="schedule-card">
+        <h2>Schedule List <span class="muted">({{ schedules|length }})</span></h2>
+        {% if schedules %}
+        <div class="schedule-table-wrap">
+        <table class="schedule-table">
+            <thead><tr><th>Course / Section</th><th>Lecturer</th><th>Day</th><th>Time</th><th>Room</th><th>Effective Period</th><th>Actions</th></tr></thead>
+            <tbody>
+            {% for schedule, section, course, lecturer, user in schedules %}
+            <tr>
+                <td><strong>{{ course.course_code }}</strong><br>{{ course.course_name }}<br><small>{{ section.section_code }}</small></td>
+                <td>{{ user.full_name }}</td>
+                <td>{{ day_names.get(schedule.day_of_week, '—') }}</td>
+                <td>{{ schedule.start_time.strftime('%H:%M') }}–{{ schedule.end_time.strftime('%H:%M') }}</td>
+                <td>{{ schedule.room or '—' }}</td>
+                <td>{{ schedule.effective_from.strftime('%d/%m/%Y') }} – {{ schedule.effective_to.strftime('%d/%m/%Y') }}</td>
+                <td>
+                    <details>
+                        <summary style="cursor:pointer;color:#243b80;font-weight:700">Edit</summary>
+                        <form method="POST" action="{{ url_for('admin.update_class_schedule', schedule_id=schedule.schedule_id) }}" style="min-width:260px;padding:10px">
+                            <label>Section</label>
+                            <select name="section_id" required>
+                            {% for s, c, l, u in sections %}<option value="{{ s.section_id }}" {% if s.section_id == section.section_id %}selected{% endif %}>{{ s.section_code }} — {{ c.course_code }}</option>{% endfor %}
+                            </select>
+                            <label>Day</label><select name="day_of_week">{% for day,name in day_names.items() %}<option value="{{ day }}" {% if day == schedule.day_of_week %}selected{% endif %}>{{ name }}</option>{% endfor %}</select>
+                            <label>Start</label><input type="time" name="start_time" value="{{ schedule.start_time.strftime('%H:%M') }}" required>
+                            <label>End</label><input type="time" name="end_time" value="{{ schedule.end_time.strftime('%H:%M') }}" required>
+                            <label>Room</label><input name="room" value="{{ schedule.room or '' }}" maxlength="50">
+                            <label>From</label><input type="date" name="effective_from" value="{{ schedule.effective_from.isoformat() }}" required>
+                            <label>To</label><input type="date" name="effective_to" value="{{ schedule.effective_to.isoformat() }}" required>
+                            <button class="schedule-btn" type="submit">Save Changes</button>
+                        </form>
+                    </details>
+                    <form method="POST" action="{{ url_for('admin.delete_class_schedule', schedule_id=schedule.schedule_id) }}" onsubmit="return confirm('Delete this schedule?')">
+                        <button class="schedule-btn delete" type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}<p class="muted">No schedules have been created yet.</p>{% endif %}
+    </section>
+</div>
+{% endblock %}

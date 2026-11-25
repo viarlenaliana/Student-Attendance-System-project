@@ -1,0 +1,1010 @@
+
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+
+.user-page {
+    color: #1e293b;
+}
+
+.user-page h2 {
+    font-size: 26px;
+    margin-bottom: 6px;
+}
+
+.page-description {
+    color: #64748b;
+    margin-bottom: 24px;
+}
+
+/* CARDS */
+
+.user-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 22px;
+    box-shadow: 0 4px 15px rgba(15, 23, 42, 0.04);
+}
+
+.user-card h3 {
+    margin: 0 0 20px;
+    font-size: 19px;
+}
+
+/* CREATE ACCOUNT TOGGLE */
+
+.create-toggle {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 18px;
+    border: 1px solid #dbeafe;
+    border-radius: 10px;
+    background: #eff6ff;
+    color: #1e40af;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.create-toggle:hover {
+    background: #dbeafe;
+}
+
+.toggle-arrow {
+    font-size: 14px;
+}
+
+/* COLLAPSIBLE FORM */
+
+.create-form-container {
+    display: none;
+    margin-top: 24px;
+    padding-top: 22px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.create-form-container.open {
+    display: block;
+    animation: slideDown 0.25s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* FORM GRID */
+
+.account-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 24px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #ffffff;
+    outline: none;
+    transition: 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.form-hint {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.password-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-input-wrap input {
+    padding-right: 88px !important;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 0;
+    background: transparent;
+    color: #2563eb;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 6px 8px;
+}
+
+.password-toggle:hover {
+    color: #1d4ed8;
+}
+
+.student-only {
+    display: none;
+}
+
+.student-only.visible {
+    display: flex;
+}
+
+/* FORM BUTTONS */
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 25px;
+}
+
+.create-button {
+    padding: 12px 22px;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.create-button:hover {
+    background: #1d4ed8;
+}
+
+.cancel-button {
+    padding: 12px 22px;
+    background: #e2e8f0;
+    color: #334155;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.cancel-button:hover {
+    background: #cbd5e1;
+}
+
+/* SEARCH */
+
+.account-search {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.account-search input,
+.account-search select {
+    padding: 11px 13px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.account-search input {
+    flex: 1;
+    min-width: 150px;
+}
+
+.search-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background: #2563eb;
+    color: white;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.search-button:hover {
+    background: #1d4ed8;
+}
+
+/* TABLE */
+
+.user-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.user-table {
+    width: 100%;
+    min-width: 780px;
+    border-collapse: collapse;
+}
+
+.user-table th {
+    background: #1e40af;
+    color: white;
+    padding: 14px 12px;
+    text-align: left;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.user-table td {
+    padding: 14px 12px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 14px;
+}
+
+.user-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.account-id {
+    font-weight: 700;
+    color: #1e40af;
+}
+
+/* ROLE BADGES */
+
+.role-badge {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.role-admin {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
+.role-student {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.role-lecturer {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+/* STATUS */
+
+.status-active {
+    color: #15803d;
+    font-weight: 600;
+}
+
+.status-locked {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+/* ACTION BUTTONS */
+
+.action-button {
+    padding: 7px 11px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    margin: 2px;
+}
+
+.lock-button {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.unlock-button {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.delete-button {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.admin-label {
+    color: #64748b;
+    font-size: 12px;
+}
+
+/* EMPTY TABLE */
+
+.empty-message {
+    text-align: center;
+    padding: 28px !important;
+    color: #64748b;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 700px) {
+    .account-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .account-search {
+        flex-wrap: wrap;
+    }
+
+    .account-search input {
+        flex-basis: 100%;
+    }
+
+    .form-actions {
+        flex-wrap: wrap;
+    }
+}
+</style>
+
+
+<div class="user-page">
+
+    <!-- PAGE HEADER -->
+
+    <h2>User Management</h2>
+
+    <p class="page-description">
+        Manage system accounts and user permissions.
+    </p>
+
+
+    <!-- CREATE ACCOUNT CARD -->
+
+    <div class="user-card">
+
+        <button
+            type="button"
+            class="create-toggle"
+            id="toggleCreateButton"
+            aria-expanded="false"
+            aria-controls="createAccountForm"
+            onclick="toggleCreateForm()"
+        >
+
+            <span id="toggleTitle">
+                + Create New Account
+            </span>
+
+            <span class="toggle-arrow" id="toggleArrow">
+                ▼
+            </span>
+
+        </button>
+
+
+        <!-- COLLAPSIBLE FORM -->
+
+        <div
+            class="create-form-container"
+            id="createAccountForm"
+        >
+
+            <h3>Create Account</h3>
+
+            <p class="form-hint" style="margin-bottom: 22px;">
+                Enter the required information to create a new account.
+            </p>
+
+
+            <form
+                method="POST"
+                action="{{ url_for('admin.create_user') }}"
+            >
+
+                <div class="account-grid">
+
+
+                    <!-- ACCOUNT ID -->
+
+                    <div class="form-group">
+
+                        <label for="accountId">
+                            Account ID *
+                        </label>
+
+                        <input
+                            type="text"
+                            id="accountId"
+                            name="username"
+                            maxlength="6"
+                            minlength="6"
+                            pattern="[0-9]{6}"
+                            inputmode="numeric"
+                            placeholder="Enter 6-digit ID"
+                            required
+                        >
+
+                        <span class="form-hint">
+                            Admin: 1xxxxx |
+                            Student: 2xxxxx |
+                            Lecturer: 3xxxxx
+                        </span>
+
+                    </div>
+
+
+                    <!-- ROLE -->
+
+                    <div class="form-group">
+
+                        <label for="accountRole">
+                            Account Role *
+                        </label>
+
+                        <select
+                            name="role"
+                            id="accountRole"
+                            required
+                        >
+
+                            <option value="">
+                                Select account role
+                            </option>
+
+                            <option value="student">
+                                Student
+                            </option>
+
+                            <option value="lecturer">
+                                Lecturer
+                            </option>
+
+                        </select>
+
+                        <span
+                            class="form-hint"
+                            id="roleHint"
+                        >
+                            Select a role for this account.
+                        </span>
+
+                    </div>
+
+
+                    <!-- FULL NAME -->
+
+                    <div class="form-group">
+
+                        <label for="fullName">
+                            Full Name *
+                        </label>
+
+                        <input
+                            type="text"
+                            id="fullName"
+                            name="full_name"
+                            maxlength="150"
+                            placeholder="Enter full name"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- EMAIL -->
+
+                    <div class="form-group">
+
+                        <label for="email">
+                            Email Address *
+                        </label>
+
+                        <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            maxlength="191"
+                            placeholder="example@email.com"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- PASSWORD -->
+
+                    <div class="form-group">
+
+                        <label for="password">
+                            Password *
+                        </label>
+
+                        <div class="password-input-wrap">
+                            <input
+                                type="password"
+                                id="password"
+                                name="password"
+                                value="admin@123"
+                                minlength="8"
+                                autocomplete="new-password"
+                                required
+                            >
+                            <button
+                                type="button"
+                                class="password-toggle"
+                                id="togglePasswordButton"
+                                onclick="togglePasswordVisibility()"
+                                aria-label="Show password"
+                            >
+                                Show
+                            </button>
+                        </div>
+
+                        <span class="form-hint">
+                            Default password: <strong>admin@123</strong>. Admin can change it before creating the account.
+                        </span>
+
+                    </div>
+
+                    <!-- STUDENT PROFILE FIELDS -->
+                    <div class="form-group profile-field" id="departmentField">
+                        <label for="departmentId">Department *</label>
+                        <select name="department_id" id="departmentId" disabled>
+                            <option value="">Select department</option>
+                            {% for department in departments %}
+                            <option value="{{ department.department_id }}">
+                                {{ department.department_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <span class="form-hint">
+                            Required when creating a student or lecturer account.
+                        </span>
+                    </div>
+
+                    <div class="form-group student-only" id="enrollmentYearField">
+                        <label for="enrollmentYear">Enrollment Year</label>
+                        <input
+                            type="number"
+                            name="enrollment_year"
+                            id="enrollmentYear"
+                            min="1900"
+                            max="2100"
+                            placeholder="Example: 2026"
+                            disabled
+                        >
+                        <span class="form-hint">
+                            Optional.
+                        </span>
+                    </div>
+
+                </div>
+
+
+                <!-- FORM ACTIONS -->
+
+                <div class="form-actions">
+
+                    <button
+                        type="submit"
+                        class="create-button"
+                    >
+                        + Create Account
+                    </button>
+
+                    <button
+                        type="button"
+                        class="cancel-button"
+                        onclick="closeCreateForm()"
+                    >
+                        Cancel
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+    <!-- ACCOUNT LIST -->
+
+    <div class="user-card">
+
+        <h3>Account List</h3>
+
+
+        <!-- SEARCH AND FILTER -->
+
+        <form
+            method="GET"
+            action="{{ url_for('admin.users') }}"
+            class="account-search"
+        >
+
+            <input
+                type="text"
+                name="keyword"
+                placeholder="Search Account ID, name or email..."
+                value="{{ keyword }}"
+            >
+
+            <select name="role">
+
+                <option value="">
+                    All Roles
+                </option>
+
+                <option
+                    value="admin"
+                    {% if selected_role == 'admin' %}selected{% endif %}
+                >
+                    Admin
+                </option>
+
+                <option
+                    value="student"
+                    {% if selected_role == 'student' %}selected{% endif %}
+                >
+                    Student
+                </option>
+
+                <option
+                    value="lecturer"
+                    {% if selected_role == 'lecturer' %}selected{% endif %}
+                >
+                    Lecturer
+                </option>
+
+            </select>
+
+            <button
+                type="submit"
+                class="search-button"
+            >
+                Search
+            </button>
+
+        </form>
+
+
+        <!-- ACCOUNT TABLE -->
+
+        <div class="user-table-wrapper">
+
+            <table class="user-table">
+
+                <thead>
+
+                    <tr>
+                        <th>Database ID</th>
+                        <th>Account ID</th>
+                        <th>Full Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                    {% for user in users %}
+
+                    <tr>
+
+                        <td>
+                            {{ user.user_id }}
+                        </td>
+
+                        <td class="account-id">
+                            {{ user.username }}
+                        </td>
+
+                        <td>
+                            {{ user.full_name }}
+                        </td>
+
+                        <td>
+                            {{ user.email }}
+                        </td>
+
+
+                        <!-- ROLE -->
+
+                        <td>
+
+                            {% if user.role == 'admin' %}
+
+                                <span class="role-badge role-admin">
+                                    Admin
+                                </span>
+
+                            {% elif user.role == 'student' %}
+
+                                <span class="role-badge role-student">
+                                    Student
+                                </span>
+
+                            {% else %}
+
+                                <span class="role-badge role-lecturer">
+                                    Lecturer
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+
+                        <!-- STATUS -->
+
+                        <td>
+
+                            {% if user.is_active %}
+
+                                <span class="status-active">
+                                    Active
+                                </span>
+
+                            {% else %}
+
+                                <span class="status-locked">
+                                    Locked
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+
+                        <!-- ACTIONS -->
+
+                        <td>
+
+                            {% if user.role != 'admin' %}
+
+
+                                <!-- LOCK / UNLOCK -->
+
+                                <form
+                                    method="POST"
+                                    action="{{ url_for('admin.update_user_status', user_id=user.user_id) }}"
+                                    style="display:inline;"
+                                >
+
+                                    {% if user.is_active %}
+
+                                        <input
+                                            type="hidden"
+                                            name="is_active"
+                                            value="0"
+                                        >
+
+                                        <button
+                                            type="submit"
+                                            class="action-button lock-button"
+                                        >
+                                            Lock
+                                        </button>
+
+                                    {% else %}
+
+                                        <input
+                                            type="hidden"
+                                            name="is_active"
+                                            value="1"
+                                        >
+
+                                        <button
+                                            type="submit"
+                                            class="action-button unlock-button"
+                                        >
+                                            Unlock
+                                        </button>
+
+                                    {% endif %}
+
+                                </form>
+
+
+                                <!-- DELETE -->
+
+                                <form
+                                    method="POST"
+                                    action="{{ url_for('admin.delete_user', user_id=user.user_id) }}"
+                                    style="display:inline;"
+                                    onsubmit="return confirm('Are you sure you want to permanently delete this account?');"
+                                >
+
+                                    <button
+                                        type="submit"
+                                        class="action-button delete-button"
+                                    >
+                                        Delete
+                                    </button>
+
+                                </form>
+
+
+                            {% else %}
+
+                                <span class="admin-label">
+                                    Admin Account
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+                    </tr>
+
+
+                    {% else %}
+
+                    <tr>
+
+                        <td
+                            colspan="7"
+                            class="empty-message"
+                        >
+                            No accounts found.
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- JAVASCRIPT -->
+
+<script>
+
+function toggleCreateForm() {
+
+    const form = document.getElementById("createAccountForm");
+    const arrow = document.getElementById("toggleArrow");
+    const title = document.getElementById("toggleTitle");
+    const button = document.getElementById("toggleCreateButton");
+
+    const isOpen = form.classList.contains("open");
+
+    if (isOpen) {
+
+        closeCreateForm();
+
+    } else {
+
+        form.classList.add("open");
+
+        arrow.textContent = "▲";
+        title.textContent = "Close Create Account";
+
+        button.setAttribute("aria-expanded", "true");
+
+    }
+
+}
+
+
+function togglePasswordVisibility() {
+    const passwordInput = document.getElementById("password");
+    const toggleButton = document.getElementById("togglePasswordButton");
+
+    if (passwordInput.type === "password") {
+        passwordInput.type = "text";
+        toggleButton.textContent = "Hide";
+        toggleButton.setAttribute("aria-label", "Hide password");
+    } else {
+        passwordInput.type = "password";
+        toggleButton.textContent = "Show";
+        toggleButton.setAttribute("aria-label", "Show password");
+    }
+}
+
+
+function closeCreateForm() {
+
+    const form = document.getElementById("createAccountForm");
+    const arrow = document.getElementById("toggleArrow");
+    const title = document.getElementById("toggleTitle");
+    const button = document.getElementById("toggleCreateButton");
+
+    form.classList.remove("open");
+
+    arrow.textContent = "▼";
+    title.textContent = "+ Create New Account";
+
+    button.setAttribute("aria-expanded", "false");
+
+}
+
+
+// UPDATE FORM FIELDS BASED ON SELECTED ROLE
+
+const roleSelect = document.getElementById("accountRole");
+const roleHint = document.getElementById("roleHint");
+const accountId = document.getElementById("accountId");
+const departmentField = document.getElementById("departmentField");
+const enrollmentYearField = document.getElementById("enrollmentYearField");
+const departmentSelect = document.getElementById("departmentId");
+const enrollmentYearInput = document.getElementById("enrollmentYear");
+
+function updateRoleFields() {
+    const isStudent = roleSelect.value === "student";
+    const needsProfile = roleSelect.value === "student" || roleSelect.value === "lecturer";
+
+    if (isStudent) {
+        roleHint.textContent =
+            "Student Account ID must start with 2. Account ID will also be the Student Code.";
+        accountId.placeholder = "Example: 200001";
+    } else if (roleSelect.value === "lecturer") {
+        roleHint.textContent =
+            "Lecturer Account ID must start with 3.";
+        accountId.placeholder = "Example: 300001";
+    } else {
+        roleHint.textContent = "Select a role for this account.";
+        accountId.placeholder = "Enter 6-digit ID";
+    }
+
+    departmentField.classList.toggle("visible", needsProfile);
+    enrollmentYearField.classList.toggle("visible", isStudent);
+
+    departmentSelect.disabled = !needsProfile;
+    departmentSelect.required = needsProfile;
+    enrollmentYearInput.disabled = !isStudent;
+
+    if (!needsProfile) departmentSelect.value = "";
+    if (!isStudent) enrollmentYearInput.value = "";
+}
+
+roleSelect.addEventListener("change", updateRoleFields);
+updateRoleFields();
+
+</script>
+
+{% endblock %}

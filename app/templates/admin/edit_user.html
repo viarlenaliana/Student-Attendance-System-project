@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+.edit-user-page { max-width: 850px; margin: 0 auto; color: #1e293b; }
+.edit-user-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 26px; box-shadow: 0 4px 15px rgba(15,23,42,.04); }
+.edit-user-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px 22px; margin-top: 22px; }
+.edit-user-group { display: flex; flex-direction: column; gap: 8px; }
+.edit-user-group label { font-weight: 600; font-size: 14px; color: #334155; }
+.edit-user-group input, .edit-user-group select { box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; font-size: 14px; }
+.edit-user-group input:focus, .edit-user-group select:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+.edit-user-hint { color: #64748b; font-size: 12px; }
+.edit-user-actions { display: flex; gap: 12px; margin-top: 25px; }
+.edit-user-actions button, .edit-user-actions a { border: 0; border-radius: 8px; padding: 12px 20px; font-weight: 600; cursor: pointer; text-decoration: none; }
+.save-user { background: #2563eb; color: #fff; }
+.cancel-user { background: #e2e8f0; color: #334155; }
+@media(max-width:650px) { .edit-user-grid { grid-template-columns: 1fr; } }
+</style>
+
+<div class="edit-user-page">
+  <h2>Edit Account</h2>
+  <p class="edit-user-hint">Update the information of an existing user account. Account role and internal User ID cannot be changed here.</p>
+  <div class="edit-user-card">
+    <form method="POST">
+      <div class="edit-user-grid">
+        <div class="edit-user-group">
+          <label>User ID</label>
+          <input value="{{ account.user_id }}" disabled>
+        </div>
+        <div class="edit-user-group">
+          <label>Role</label>
+          <input value="{{ account.role|capitalize }}" disabled>
+        </div>
+        {% if account.role != 'admin' %}
+        <div class="edit-user-group">
+          <label for="account_code">{{ 'Student Code' if account.role == 'student' else 'Lecturer Code' }} *</label>
+          <input id="account_code" name="account_code" value="{{ account_code }}" maxlength="20" required>
+        </div>
+        {% endif %}
+        <div class="edit-user-group">
+          <label for="full_name">Full Name *</label>
+          <input id="full_name" name="full_name" value="{{ account.full_name }}" maxlength="150" required>
+        </div>
+        <div class="edit-user-group">
+          <label for="email">Email *</label>
+          <input type="email" id="email" name="email" value="{{ account.email }}" maxlength="191" required>
+        </div>
+        {% if account.role in ['student', 'lecturer'] %}
+        <div class="edit-user-group">
+          <label for="department_id">Department *</label>
+          <select id="department_id" name="department_id" required>
+            <option value="">Select department</option>
+            {% for department in departments %}
+            <option value="{{ department.department_id }}"
+              {% if (student and student.department_id == department.department_id) or (lecturer and lecturer.department_id == department.department_id) %}selected{% endif %}>
+              {{ department.department_name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        {% if student %}
+        <div class="edit-user-group">
+          <label for="enrollment_year">Enrollment Year</label>
+          <input type="number" id="enrollment_year" name="enrollment_year" min="1900" max="2100" value="{{ student.enrollment_year or '' }}">
+        </div>
+        {% endif %}
+      </div>
+      <div class="edit-user-actions">
+        <button type="submit" class="save-user">Save Changes</button>
+        <a href="{{ url_for('admin.users') }}" class="cancel-user">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

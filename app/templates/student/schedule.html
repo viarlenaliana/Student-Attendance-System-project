@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}My Schedule{% endblock %}
+{% block content %}
+<div class="timetable-page">
+  <div class="timetable-heading"><div><h1>My Class Schedule</h1><p>Your weekly timetable for currently active course enrollments.</p></div></div>
+  <div class="timetable-summary"><span>{{ schedule_rows|length }} scheduled class{{ '' if schedule_rows|length == 1 else 'es' }}</span><span>My weekly timetable</span></div>
+  <section class="timetable-card"><div class="timetable-scroll">
+    <table class="timetable-table"><thead><tr><th>Day</th><th>Time</th><th>Course</th><th>Section</th><th>Lecturer</th><th>Room</th><th>Effective period</th></tr></thead><tbody>
+    {% for item, section, course, lecturer in schedule_rows %}
+      <tr><td><span class="timetable-day">{{ ['','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][item.day_of_week] }}</span></td>
+      <td class="timetable-time">{{ item.start_time.strftime('%H:%M') }} – {{ item.end_time.strftime('%H:%M') }}</td>
+      <td class="timetable-course"><strong>{{ course.course_code }} — {{ course.course_name }}</strong><small>{{ course.credits }} credit(s)</small></td>
+      <td>{{ section.section_code }}</td><td>{{ lecturer.full_name }}</td>
+      <td><span class="timetable-room">{{ item.room or 'Not assigned' }}</span></td>
+      <td>{{ item.effective_from.strftime('%d %b %Y') }} – {{ item.effective_to.strftime('%d %b %Y') }}</td></tr>
+    {% else %}<tr><td class="timetable-empty" colspan="7">No active class schedule found. Your timetable will appear here after you are enrolled in a scheduled class.</td></tr>{% endfor %}
+    </tbody></table>
+  </div></section>
+</div>
+{% endblock %}

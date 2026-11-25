@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance Monitoring{% endblock %}
+
+{% block content %}
+<style>
+.att-page{max-width:1500px;margin:0 auto}.att-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-bottom:24px}.att-head h2{margin:5px 0;font-size:28px;color:#172554}.att-head p{margin:0;color:#64748b}.att-eyebrow{font-size:11px;font-weight:800;letter-spacing:1.5px;color:#64748b}.att-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-bottom:22px}.att-card,.att-panel{background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 5px 18px rgba(15,23,42,.04)}.att-card{padding:17px}.att-card span{font-size:12px;color:#64748b}.att-card strong{display:block;font-size:27px;margin-top:7px;color:#172554}.att-panel{padding:20px;margin-bottom:20px}.att-panel h3{margin:0 0 16px;color:#172554}.att-filters{display:grid;grid-template-columns:2fr 1.3fr 1fr 1fr 1.2fr auto auto;gap:10px;align-items:end}.att-field label{display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px}.att-field input,.att-field select{width:100%;height:40px;border:1px solid #cbd5e1;border-radius:8px;padding:0 10px;background:#fff;color:#0f172a}.att-btn{height:40px;border:0;border-radius:8px;padding:0 15px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.att-primary{background:#2563eb;color:white}.att-light{background:#f1f5f9;color:#334155}.att-table-wrap{overflow-x:auto}.att-table{width:100%;border-collapse:collapse;min-width:1050px}.att-table th{background:#f8fafc;color:#64748b;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:13px 12px;white-space:nowrap}.att-table td{padding:13px 12px;border-bottom:1px solid #eef2f7;color:#334155;font-size:13px}.att-table tr:last-child td{border-bottom:0}.att-muted{color:#94a3b8}.att-badge{display:inline-block;padding:5px 9px;border-radius:20px;font-size:11px;font-weight:800}.st-present{background:#dcfce7;color:#166534}.st-late{background:#fef3c7;color:#92400e}.st-absent{background:#fee2e2;color:#991b1b}.st-excused{background:#e0e7ff;color:#3730a3}.att-empty{text-align:center;padding:42px 15px;color:#64748b}.att-empty strong{display:block;color:#334155;font-size:16px;margin-bottom:6px}@media(max-width:1100px){.att-cards{grid-template-columns:repeat(3,1fr)}.att-filters{grid-template-columns:repeat(3,1fr)}}@media(max-width:650px){.att-head{display:block}.att-cards{grid-template-columns:repeat(2,1fr)}.att-filters{grid-template-columns:1fr 1fr}}
+</style>
+<div class="att-page">
+  <div class="att-head"><div><span class="att-eyebrow">ATTENDANCE MANAGEMENT</span><h2>Attendance Monitoring</h2><p>Search and review student attendance records across course sections.</p></div></div>
+  <div class="att-cards">
+    <div class="att-card"><span>Total Records</span><strong>{{ summary.total }}</strong></div>
+    <div class="att-card"><span>Present</span><strong>{{ summary.present }}</strong></div>
+    <div class="att-card"><span>Late</span><strong>{{ summary.late }}</strong></div>
+    <div class="att-card"><span>Absent</span><strong>{{ summary.absent }}</strong></div>
+    <div class="att-card"><span>Excused</span><strong>{{ summary.excused }}</strong></div>
+  </div>
+  <section class="att-panel">
+    <h3>Filter Records</h3>
+    <form method="GET" action="{{ url_for('admin.attendance_monitoring') }}" class="att-filters">
+      <div class="att-field"><label>Search</label><input type="text" name="keyword" value="{{ keyword }}" placeholder="Student name, student code, course..."></div>
+      <div class="att-field"><label>Course Section</label><select name="section_id"><option value="">All sections</option>{% for section, course in sections %}<option value="{{ section.section_id }}" {% if selected_section == section.section_id %}selected{% endif %}>{{ course.course_code }} - {{ section.section_code }}</option>{% endfor %}</select></div>
+      <div class="att-field"><label>Status</label><select name="status"><option value="">All statuses</option>{% for value in ['PRESENT','LATE','ABSENT','EXCUSED'] %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ value.title() }}</option>{% endfor %}</select></div>
+      <div class="att-field"><label>Method</label><select name="method"><option value="">All methods</option>{% for value,label in [('QR_CODE','QR Code'),('PASSWORD','Password'),('QR_PASSWORD','QR + Password'),('MANUAL','Manual') ] %}<option value="{{ value }}" {% if selected_method == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+      <div class="att-field"><label>Session Date</label><input type="date" name="date" value="{{ selected_date }}"></div>
+      <button class="att-btn att-primary" type="submit">Apply</button><a class="att-btn att-light" href="{{ url_for('admin.attendance_monitoring') }}">Reset</a>
+    </form>
+  </section>
+  <section class="att-panel">
+    <h3>Attendance Records <span class="att-muted">({{ records|length }})</span></h3>
+    <div class="att-table-wrap"><table class="att-table"><thead><tr><th>Student</th><th>Student Code</th><th>Course</th><th>Section</th><th>Session Date</th><th>Time</th><th>Method</th><th>Status</th><th>Check-in</th><th>Note</th></tr></thead><tbody>
+    {% for record, session, student, user, section, course in records %}
+      <tr><td><strong>{{ user.full_name }}</strong></td><td>{{ student.student_code }}</td><td>{{ course.course_code }}<br><span class="att-muted">{{ course.course_name }}</span></td><td>{{ section.section_code }}</td><td>{{ session.session_date.strftime('%d/%m/%Y') if session.session_date else '-' }}</td><td>{{ session.start_time.strftime('%H:%M') if session.start_time else '-' }}{% if session.end_time %} - {{ session.end_time.strftime('%H:%M') }}{% endif %}</td><td>{{ {'QR_CODE':'QR Code','PASSWORD':'Password','QR_PASSWORD':'QR + Password','MANUAL':'Manual'}.get(session.attendance_method, session.attendance_method) }}</td><td><span class="att-badge st-{{ record.attendance_status|lower }}">{{ record.attendance_status }}</span></td><td>{{ record.check_in_time.strftime('%d/%m/%Y %H:%M') if record.check_in_time else '-' }}</td><td>{{ record.note or '-' }}</td></tr>
+    {% else %}<tr><td colspan="10"><div class="att-empty"><strong>No attendance records found</strong>Try changing or clearing the filters. Records appear after attendance sessions have been taken.</div></td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+</div>
+{% endblock %}

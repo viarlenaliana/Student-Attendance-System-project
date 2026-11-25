@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}Teaching Schedule{% endblock %}
+{% block content %}
+<div class="timetable-page">
+  <div class="timetable-heading"><div><h1>Teaching Schedule</h1><p>Your weekly teaching timetable and assigned classrooms.</p></div></div>
+  <div class="timetable-summary"><span>{{ rows|length }} scheduled class{{ '' if rows|length == 1 else 'es' }}</span><span>Academic timetable</span></div>
+  <section class="timetable-card"><div class="timetable-scroll">
+    <table class="timetable-table"><thead><tr><th>Day</th><th>Time</th><th>Course</th><th>Section</th><th>Room</th><th>Effective period</th></tr></thead><tbody>
+    {% for item, section, course in rows %}
+      <tr><td><span class="timetable-day">{{ ['','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][item.day_of_week] }}</span></td>
+      <td class="timetable-time">{{ item.start_time.strftime('%H:%M') }} – {{ item.end_time.strftime('%H:%M') }}</td>
+      <td class="timetable-course"><strong>{{ course.course_code }} — {{ course.course_name }}</strong><small>Teaching assignment</small></td>
+      <td><a href="{{ url_for('lecturer.section_detail', section_id=section.section_id) }}">{{ section.section_code }}</a></td>
+      <td><span class="timetable-room">{{ item.room or 'Not assigned' }}</span></td>
+      <td>{{ item.effective_from.strftime('%d %b %Y') }} – {{ item.effective_to.strftime('%d %b %Y') }}</td></tr>
+    {% else %}<tr><td class="timetable-empty" colspan="6">No teaching schedule found. Your assigned class times will appear here.</td></tr>{% endfor %}
+    </tbody></table>
+  </div></section>
+</div>
+{% endblock %}

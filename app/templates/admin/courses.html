@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Course Management{% endblock %}
+{% block content %}
+<style>
+.course-page{color:#1e293b}.course-page h2{font-size:26px;margin:0 0 6px}.course-desc{color:#64748b;margin:0 0 24px}
+.course-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:24px;margin-bottom:22px;box-shadow:0 4px 15px rgba(15,23,42,.04)}
+.course-card h3{font-size:19px;margin:0 0 18px}.course-toggle{width:100%;display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border:1px solid #dbeafe;border-radius:10px;background:#eff6ff;color:#1e40af;font-size:16px;font-weight:700;cursor:pointer}
+.course-form{display:none;margin-top:22px;padding-top:22px;border-top:1px solid #e2e8f0}.course-form.open{display:block}.course-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 22px}
+.field{display:flex;flex-direction:column;gap:8px}.field.full{grid-column:1/-1}.field label{font-size:14px;font-weight:600;color:#334155}.field input,.field select,.field textarea{box-sizing:border-box;width:100%;padding:11px 13px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}.field textarea{min-height:82px;resize:vertical}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}.btn{display:inline-block;border:0;border-radius:8px;padding:10px 15px;font-weight:600;font-size:13px;cursor:pointer;text-decoration:none}.btn-primary{background:#2563eb;color:white}.btn-light{background:#e2e8f0;color:#334155}.btn-edit{background:#dbeafe;color:#1d4ed8}.btn-delete{background:#fee2e2;color:#b91c1c}
+.search-row{display:flex;gap:10px;margin-bottom:18px}.search-row input{flex:1;min-width:150px;padding:11px 13px;border:1px solid #cbd5e1;border-radius:8px}.table-wrap{overflow-x:auto}.course-table{width:100%;min-width:850px;border-collapse:collapse}.course-table th{background:#1e40af;color:#fff;text-align:left;padding:13px 12px;font-size:13px;white-space:nowrap}.course-table td{padding:13px 12px;border-bottom:1px solid #e2e8f0;font-size:14px;vertical-align:top}.course-table tr:hover{background:#f8fafc}.code{font-weight:700;color:#1e40af}.edit-panel{display:none;background:#f8fafc;padding:16px;border-radius:10px;margin-top:10px;min-width:280px}.edit-panel.open{display:block}.muted{color:#64748b}.empty{text-align:center;padding:28px!important;color:#64748b}
+@media(max-width:700px){.course-grid{grid-template-columns:1fr}.search-row{flex-wrap:wrap}.search-row input{flex-basis:100%}.course-card{padding:17px}}
+</style>
+<div class="course-page">
+  <h2>Course Management</h2>
+  <p class="course-desc">Create, search and maintain academic courses.</p>
+
+  <section class="course-card">
+    <button type="button" class="course-toggle" onclick="toggleCreateCourse()" id="createCourseToggle" aria-expanded="false">
+      <span id="createCourseTitle">+ Create New Course</span><span id="createCourseArrow">▼</span>
+    </button>
+    <div class="course-form" id="createCourseForm">
+      <h3>Course Information</h3>
+      {% if departments %}
+      <form method="POST" action="{{ url_for('admin.create_course') }}">
+        <div class="course-grid">
+          <div class="field"><label for="course_code">Course Code *</label><input id="course_code" name="course_code" maxlength="50" required placeholder="Example: COSC123"></div>
+          <div class="field"><label for="course_name">Course Name *</label><input id="course_name" name="course_name" maxlength="150" required placeholder="Enter course name"></div>
+          <div class="field"><label for="department_id">Department *</label><select id="department_id" name="department_id" required><option value="">Select department</option>{% for department in departments %}<option value="{{ department.department_id }}">{{ department.department_name }}</option>{% endfor %}</select></div>
+          <div class="field"><label for="credits">Credits *</label><input id="credits" name="credits" type="number" min="1" step="1" required placeholder="Example: 3"></div>
+          <div class="field full"><label for="description">Description</label><textarea id="description" name="description" placeholder="Optional course description"></textarea></div>
+        </div>
+        <div class="actions"><button class="btn btn-primary" type="submit">Save Course</button><button class="btn btn-light" type="button" onclick="toggleCreateCourse(false)">Cancel</button></div>
+      </form>
+      {% else %}
+        <p class="muted">No departments found. Create a department before adding a course.</p>
+        <div class="actions"><a class="btn btn-primary" href="{{ url_for('admin.departments') }}">Go to Departments</a></div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="course-card">
+    <h3>Course List <span class="muted" style="font-size:13px;font-weight:400">({{ courses|length }} courses)</span></h3>
+    <form method="GET" action="{{ url_for('admin.courses') }}" class="search-row">
+      <input name="keyword" value="{{ keyword }}" placeholder="Search by course code or course name...">
+      <button class="btn btn-primary" type="submit">Search</button>
+      {% if keyword %}<a class="btn btn-light" href="{{ url_for('admin.courses') }}">Clear</a>{% endif %}
+    </form>
+    <div class="table-wrap"><table class="course-table">
+      <thead><tr><th>Database ID</th><th>Course Code</th><th>Course Name</th><th>Department</th><th>Credits</th><th>Description</th><th>Actions</th></tr></thead>
+      <tbody>
+      {% for course in courses %}
+        <tr>
+          <td>{{ course.course_id }}</td><td class="code">{{ course.course_code }}</td><td>{{ course.course_name }}</td>
+          <td>{% set ns = namespace(name='Unknown department') %}{% for department in departments %}{% if department.department_id == course.department_id %}{% set ns.name = department.department_name %}{% endif %}{% endfor %}{{ ns.name }}</td>
+          <td>{{ course.credits }}</td><td>{{ course.description or '—' }}</td>
+          <td>
+            {% if departments %}<button type="button" class="btn btn-edit" onclick="toggleEditCourse({{ course.course_id }})">Edit</button>{% else %}<span class="muted">Edit unavailable</span>{% endif %}
+            <form method="POST" action="{{ url_for('admin.delete_course', course_id=course.course_id) }}" style="display:inline" onsubmit="return confirm('Delete this course? Courses with existing sections cannot be deleted.');"><button type="submit" class="btn btn-delete">Delete</button></form>
+            <div class="edit-panel" id="editCourse{{ course.course_id }}">
+              <form method="POST" action="{{ url_for('admin.update_course', course_id=course.course_id) }}">
+                <div class="course-grid">
+                  <div class="field"><label>Course Code *</label><input name="course_code" value="{{ course.course_code }}" required maxlength="50"></div>
+                  <div class="field"><label>Course Name *</label><input name="course_name" value="{{ course.course_name }}" required maxlength="150"></div>
+                  <div class="field"><label>Department *</label><select name="department_id" required>{% for department in departments %}<option value="{{ department.department_id }}" {% if department.department_id == course.department_id %}selected{% endif %}>{{ department.department_name }}</option>{% endfor %}</select></div>
+                  <div class="field"><label>Credits *</label><input type="number" name="credits" min="1" value="{{ course.credits }}" required></div>
+                  <div class="field full"><label>Description</label><textarea name="description">{{ course.description or '' }}</textarea></div>
+                </div>
+                <div class="actions"><button class="btn btn-primary" type="submit">Save Changes</button><button class="btn btn-light" type="button" onclick="toggleEditCourse({{ course.course_id }})">Cancel</button></div>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% else %}<tr><td colspan="7" class="empty">No courses found.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </section>
+</div>
+<script>
+function toggleCreateCourse(force){const form=document.getElementById('createCourseForm');const btn=document.getElementById('createCourseToggle');const open=typeof force==='boolean'?force:!form.classList.contains('open');form.classList.toggle('open',open);btn.setAttribute('aria-expanded',String(open));document.getElementById('createCourseTitle').textContent=open?'Close Create Course':'+ Create New Course';document.getElementById('createCourseArrow').textContent=open?'▲':'▼';}
+function toggleEditCourse(id){const panel=document.getElementById('editCourse'+id);panel.classList.toggle('open');}
+</script>
+{% endblock %}

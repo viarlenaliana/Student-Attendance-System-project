@@ -1,0 +1,10 @@
+{% extends 'base.html' %}{% block title %}Scan Attendance QR{% endblock %}{% block content %}
+<h1>Scan Attendance QR</h1><p>Allow camera access when your browser asks. Camera scanning requires HTTPS online or localhost.</p><div id="reader" style="max-width:460px"></div><p id="message" role="status"></p><div id="password-box" hidden><label>Attendance password <input id="attendance-password" type="password"></label><button id="confirm">Confirm attendance</button></div>
+<script src="https://unpkg.com/html5-qrcode"></script><script>
+let scanner, token='', stopped=false;const msg=document.getElementById('message'),box=document.getElementById('password-box');
+function say(t){msg.textContent=t;}
+async function send(){try{const r=await fetch('{{ url_for("main.scan_qr_attendance") }}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,password:document.getElementById('attendance-password').value})});const d=await r.json();say(d.message||'Request completed.');if(d.requires_password){box.hidden=false;return;}if(d.success){box.hidden=true;return;} }catch(e){say('Could not contact the server. Try again.');}}
+async function onScan(text){if(stopped)return;stopped=true;token=text.trim();try{await scanner.stop();}catch(e){}await send();}
+document.getElementById('confirm').addEventListener('click',send);
+(async()=>{if(!window.Html5Qrcode){say('QR scanner library did not load.');return;}scanner=new Html5Qrcode('reader');try{await scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:240,height:240}},onScan,()=>{});say('Camera ready. Point it at the lecturer QR code.');}catch(e){say('Cannot start camera. Check browser camera permission and use HTTPS or localhost.');}})();
+</script>{% endblock %}

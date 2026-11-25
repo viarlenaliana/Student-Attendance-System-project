@@ -1,0 +1,4 @@
+{% extends 'base.html' %}{% block title %}Student Dashboard{% endblock %}{% block content %}
+<h1>Student Dashboard</h1><p>Welcome back, {{ session.get('full_name','Student') }}.</p>
+<div class="dashboard-cards"><div class="card card-blue"><p class="card-title">Enrolled Courses</p><h3 class="card-value">{{ course_count }}</h3></div><div class="card card-green"><p class="card-title">Attended</p><h3 class="card-value">{{ attended_count }}</h3></div><div class="card card-red"><p class="card-title">Absent</p><h3 class="card-value">{{ absent_count }}</h3></div><div class="card card-purple"><p class="card-title">Attendance Rate</p><h3 class="card-value">{{ attendance_rate }}%</h3></div></div>
+<p><a href="{{ url_for('main.attendance') }}">Check in to an active class</a> · <a href="{{ url_for('main.student_scan_page') }}">Scan QR code</a></p>{% endblock %}
