@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 
-<body class="app-body">
+<body class="app-body role-{{ session.get('role', 'student')|lower }}">
 
 <header class="topbar">
 

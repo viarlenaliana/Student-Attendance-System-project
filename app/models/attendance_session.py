@@ -58,6 +58,13 @@ class AttendanceSession(db.Model):
         nullable=True
     )
 
+    qr_refresh_seconds = db.Column(
+        db.Integer,
+        nullable=False,
+        default=30,
+        server_default="30"
+    )
+
     attendance_password = db.Column(
         db.String(255),
         nullable=True

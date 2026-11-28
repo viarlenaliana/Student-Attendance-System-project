@@ -991,14 +991,16 @@ function updateRoleFields() {
         accountId.placeholder = "Enter 6-digit ID";
     }
 
-    departmentField.classList.toggle("visible", needsProfile);
+    // Students are assigned the default department server-side; only
+    // lecturers need to choose a department in this form.
+    departmentField.classList.toggle("visible", roleSelect.value === "lecturer");
     enrollmentYearField.classList.toggle("visible", isStudent);
 
-    departmentSelect.disabled = !needsProfile;
-    departmentSelect.required = needsProfile;
+    departmentSelect.disabled = roleSelect.value !== "lecturer";
+    departmentSelect.required = roleSelect.value === "lecturer";
     enrollmentYearInput.disabled = !isStudent;
 
-    if (!needsProfile) departmentSelect.value = "";
+    if (roleSelect.value !== "lecturer") departmentSelect.value = "";
     if (!isStudent) enrollmentYearInput.value = "";
 }
 

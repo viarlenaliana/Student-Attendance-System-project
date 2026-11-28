@@ -1,8 +1,137 @@
-{% extends 'base.html' %}{% block title %}Attendance Session{% endblock %}{% block content %}
-<h1>Attendance — {{ course.course_code }} / {{ section.section_code }}</h1><p>Date: {{ attendance_session.session_date }} · Method: {{ attendance_session.attendance_method }} · Status: <strong>{{ attendance_session.status }}</strong></p>
-<div class="dashboard-cards"><div class="card card-green"><p class="card-title">Present</p><h3 class="card-value">{{ counts.PRESENT }}</h3></div><div class="card card-red"><p class="card-title">Absent</p><h3 class="card-value">{{ counts.ABSENT }}</h3></div><div class="card card-purple"><p class="card-title">Late</p><h3 class="card-value">{{ counts.LATE }}</h3></div><div class="card card-blue"><p class="card-title">Excused</p><h3 class="card-value">{{ counts.EXCUSED }}</h3></div></div>
-{% if attendance_session.status == 'ACTIVE' and attendance_session.attendance_method in ['QR_CODE','QR_PASSWORD'] %}<section class="content-section"><h2>Live QR Code</h2><img id="live-qr" src="{{ url_for('lecturer.qr_image',session_id=attendance_session.session_id) }}?v={{ range(1,999999)|random }}" alt="Attendance QR" style="width:260px;max-width:100%;background:white;padding:12px;border:1px solid #ddd;border-radius:12px"><p>Refreshes every 30 seconds. Remaining: <strong id="qr-countdown">—</strong>s</p></section>{% endif %}
-{% if attendance_session.status == 'ACTIVE' %}<form method="post" action="{{ url_for('lecturer.close_session',session_id=attendance_session.session_id) }}" onsubmit="return confirm('Close this attendance session?')"><button type="submit">Close Session</button></form>{% endif %}
-<section class="content-section"><h2>Student Attendance</h2><table><thead><tr><th>Student</th><th>Status</th><th>Check-in</th><th>Method</th><th>Note / Update</th></tr></thead><tbody>{% for record,user in records %}<tr><td>{{ user.full_name }}</td><td>{{ record.attendance_status }}</td><td>{{ record.check_in_time or '—' }}</td><td>{{ record.method_used or '—' }}</td><td><form method="post" action="{{ url_for('lecturer.update_record',session_id=attendance_session.session_id,record_id=record.record_id) }}"><select name="attendance_status">{% for s in ['PRESENT','ABSENT','LATE','EXCUSED'] %}<option value="{{ s }}" {% if record.attendance_status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select><input name="note" placeholder="Note" value="{{ record.note or '' }}"><button type="submit">Save</button></form></td></tr>{% else %}<tr><td colspan="5">No attendance records.</td></tr>{% endfor %}</tbody></table></section>
-{% if attendance_session.status == 'ACTIVE' and attendance_session.attendance_method in ['QR_CODE','QR_PASSWORD'] %}<script>const qrImg=document.getElementById('live-qr'),count=document.getElementById('qr-countdown');async function refreshQR(){try{const r=await fetch('{{ url_for('lecturer.qr_status',session_id=attendance_session.session_id) }}',{cache:'no-store'});const d=await r.json();if(!d.active){count.textContent='closed';return;}count.textContent=d.remaining_seconds;if(d.remaining_seconds===0){qrImg.src=d.qr_image_url+'?t='+Date.now();} }catch(e){count.textContent='—';}}refreshQR();setInterval(refreshQR,1000);setInterval(()=>{qrImg.src='{{ url_for('lecturer.qr_image',session_id=attendance_session.session_id) }}?t='+Date.now()},30000);</script>{% endif %}
+{% extends 'base.html' %}
+{% block title %}Attendance Session{% endblock %}
+{% block content %}
+<h1>Attendance — {{ course.course_code }} / {{ section.section_code }}</h1>
+<p>Date: {{ attendance_session.session_date }} · Method: {{ attendance_session.attendance_method }} · Status: <strong>{{ attendance_session.status }}</strong></p>
+
+<div class="dashboard-cards">
+  <div class="card card-green"><p class="card-title">Present</p><h3 class="card-value">{{ counts.PRESENT }}</h3></div>
+  <div class="card card-red"><p class="card-title">Absent</p><h3 class="card-value">{{ counts.ABSENT }}</h3></div>
+  <div class="card card-purple"><p class="card-title">Late</p><h3 class="card-value">{{ counts.LATE }}</h3></div>
+  <div class="card card-blue"><p class="card-title">Excused</p><h3 class="card-value">{{ counts.EXCUSED }}</h3></div>
+</div>
+
+{% if attendance_session.status == 'ACTIVE' and attendance_session.attendance_method in ['QR_CODE','QR_PASSWORD'] %}
+<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:18px 0;">
+  <button type="button" id="open-qr-popup">Show QR on screen</button>
+  <span class="muted">QR refreshes every {{ attendance_session.qr_refresh_seconds or 30 }} seconds.</span>
+</div>
+
+<div id="qr-popup" class="qr-popup" role="dialog" aria-modal="true" aria-labelledby="qr-popup-title">
+  <div class="qr-popup-panel">
+    <div class="qr-popup-header">
+      <div>
+        <h2 id="qr-popup-title">Live Attendance QR</h2>
+        <p>Show this code to students to scan.</p>
+      </div>
+      <button type="button" id="close-qr-popup" class="qr-close" aria-label="Close QR window">×</button>
+    </div>
+    <img id="live-qr" src="{{ url_for('lecturer.qr_image',session_id=attendance_session.session_id) }}?v={{ range(1,999999)|random }}" alt="Attendance QR code">
+    <p class="qr-countdown-line">New QR in <strong id="qr-countdown">{{ attendance_session.qr_refresh_seconds or 30 }}</strong> seconds</p>
+    <p id="qr-popup-message" class="qr-popup-message"></p>
+    <button type="button" id="hide-qr-popup" class="qr-hide-button">Hide QR window</button>
+  </div>
+</div>
+
+<style>
+.qr-popup{position:fixed;inset:0;z-index:99999;background:rgba(10,18,38,.78);display:flex;align-items:center;justify-content:center;padding:20px}
+.qr-popup[hidden]{display:none}
+.qr-popup-panel{position:relative;width:min(92vw,620px);max-height:94vh;overflow:auto;background:#fff;border-radius:22px;padding:26px;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.35)}
+.qr-popup-header{display:flex;justify-content:space-between;align-items:flex-start;text-align:left;gap:16px}
+.qr-popup-header h2{margin:0 0 6px;font-size:26px;color:#172554}
+.qr-popup-header p{margin:0;color:#64748b}
+.qr-close{border:0;background:#eef2f7;border-radius:50%;width:42px;height:42px;font-size:28px;line-height:1;cursor:pointer}
+#live-qr{display:block;width:min(65vw,390px);height:auto;max-width:100%;margin:20px auto 12px;padding:12px;background:#fff;border:1px solid #dbe2ea;border-radius:16px;image-rendering:pixelated}
+.qr-countdown-line{font-size:17px;color:#334155;margin:10px 0}
+.qr-popup-message{color:#b91c1c;min-height:20px}
+.qr-hide-button{padding:11px 22px;border:0;border-radius:10px;background:#475569;color:#fff;font-weight:700;cursor:pointer}
+#open-qr-popup{padding:11px 18px;border:0;border-radius:10px;background:#4f46e5;color:#fff;font-weight:700;cursor:pointer}
+@media(max-width:520px){.qr-popup-panel{padding:18px}.qr-popup-header h2{font-size:21px}}
+</style>
+
+<script>
+(() => {
+  const popup = document.getElementById('qr-popup');
+  const qrImg = document.getElementById('live-qr');
+  const countdown = document.getElementById('qr-countdown');
+  const message = document.getElementById('qr-popup-message');
+  const openButton = document.getElementById('open-qr-popup');
+  const closeButton = document.getElementById('close-qr-popup');
+  const hideButton = document.getElementById('hide-qr-popup');
+  const statusUrl = {{ url_for('lecturer.qr_status',session_id=attendance_session.session_id)|tojson }};
+  let lastRefreshAt = 0;
+  let isActive = true;
+
+  function showPopup(){ popup.hidden = false; }
+  function hidePopup(){ popup.hidden = true; }
+  function reloadQr(){
+    qrImg.src = {{ url_for('lecturer.qr_image',session_id=attendance_session.session_id)|tojson }} + '?t=' + Date.now();
+    lastRefreshAt = Date.now();
+  }
+  async function pollQr(){
+    try {
+      const response = await fetch(statusUrl, {cache:'no-store'});
+      const data = await response.json();
+      if (!data.active) {
+        isActive = false;
+        countdown.textContent = 'closed';
+        message.textContent = 'This attendance session has been closed.';
+        return;
+      }
+      const remaining = Number(data.remaining_seconds || 0);
+      countdown.textContent = remaining;
+      if (remaining <= 0 || (lastRefreshAt && Date.now() - lastRefreshAt > (Number(data.refresh_interval) + 2) * 1000)) {
+        reloadQr();
+      }
+    } catch (error) {
+      message.textContent = 'Unable to refresh QR. Checking connection...';
+    }
+  }
+
+  openButton.addEventListener('click', showPopup);
+  closeButton.addEventListener('click', hidePopup);
+  hideButton.addEventListener('click', hidePopup);
+  popup.addEventListener('click', (event) => { if (event.target === popup) hidePopup(); });
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !popup.hidden) hidePopup(); });
+
+  showPopup();          // Open large QR window automatically when session starts.
+  reloadQr();
+  pollQr();
+  setInterval(() => { if (isActive) pollQr(); }, 1000);
+})();
+</script>
+{% endif %}
+
+{% if attendance_session.status == 'ACTIVE' %}
+<form method="post" action="{{ url_for('lecturer.close_session',session_id=attendance_session.session_id) }}" onsubmit="return confirm('Close this attendance session?')">
+  <button type="submit">Close Session</button>
+</form>
+{% endif %}
+
+<section class="content-section">
+  <h2>Student Attendance</h2>
+  <table>
+    <thead><tr><th>Student</th><th>Status</th><th>Check-in</th><th>Method</th><th>Note / Update</th></tr></thead>
+    <tbody>
+    {% for record,user in records %}
+      <tr>
+        <td>{{ user.full_name }}</td><td>{{ record.attendance_status }}</td><td>{{ record.check_in_time or '—' }}</td><td>{{ record.method_used or '—' }}</td>
+        <td>
+          <form method="post" action="{{ url_for('lecturer.update_record',session_id=attendance_session.session_id,record_id=record.record_id) }}">
+            <select name="attendance_status">
+              {% for s in ['PRESENT','ABSENT','LATE','EXCUSED'] %}
+                <option value="{{ s }}" {% if record.attendance_status==s %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+            <input name="note" placeholder="Note" value="{{ record.note or '' }}">
+            <button type="submit">Save</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5">No attendance records.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
 {% endblock %}

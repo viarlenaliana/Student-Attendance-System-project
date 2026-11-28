@@ -24,7 +24,9 @@ from app.models.attendance_complaint import AttendanceComplaint
 from app.routes.auth import role_required
 
 lecturer_bp = Blueprint("lecturer", __name__, url_prefix="/lecturer")
-QR_REFRESH_SECONDS = 30
+QR_REFRESH_SECONDS_DEFAULT = 30
+QR_REFRESH_SECONDS_MIN = 5
+QR_REFRESH_SECONDS_MAX = 300
 
 
 def _lecturer_id():
@@ -56,7 +58,8 @@ def _rotate_qr_if_needed(item):
     now = datetime.now()
     if not item.qr_token or not item.qr_expired_at or now >= item.qr_expired_at:
         item.qr_token = secrets.token_urlsafe(24)
-        item.qr_expired_at = now + timedelta(seconds=QR_REFRESH_SECONDS)
+        refresh_seconds = item.qr_refresh_seconds or QR_REFRESH_SECONDS_DEFAULT
+        item.qr_expired_at = now + timedelta(seconds=refresh_seconds)
         db.session.commit()
 
 
@@ -165,6 +168,11 @@ def create_session(section_id):
         if method in {"PASSWORD", "QR_PASSWORD"} and not password:
             raise ValueError("An attendance password is required for this method.")
         qr_token = secrets.token_urlsafe(24) if method in {"QR_CODE", "QR_PASSWORD"} else None
+        try:
+            qr_refresh_seconds = int(request.form.get("qr_refresh_seconds") or QR_REFRESH_SECONDS_DEFAULT)
+        except (TypeError, ValueError):
+            qr_refresh_seconds = QR_REFRESH_SECONDS_DEFAULT
+        qr_refresh_seconds = max(QR_REFRESH_SECONDS_MIN, min(QR_REFRESH_SECONDS_MAX, qr_refresh_seconds))
         new_session = AttendanceSession(
             section_id=section_id,
             schedule_id=schedule.schedule_id if schedule else None,
@@ -174,7 +182,8 @@ def create_session(section_id):
             end_time=end_value,
             attendance_method=method,
             qr_token=qr_token,
-            qr_expired_at=(datetime.now() + timedelta(seconds=QR_REFRESH_SECONDS)) if qr_token else None,
+            qr_expired_at=(datetime.now() + timedelta(seconds=qr_refresh_seconds)) if qr_token else None,
+            qr_refresh_seconds=qr_refresh_seconds,
             attendance_password=password,
             allow_makeup=(request.form.get("allow_makeup") == "on"),
             status="ACTIVE",
@@ -240,7 +249,7 @@ def qr_status(session_id):
     return jsonify({
         "active": True, "remaining_seconds": seconds,
         "qr_image_url": url_for("lecturer.qr_image", session_id=session_id),
-        "refresh_interval": QR_REFRESH_SECONDS
+        "refresh_interval": item.qr_refresh_seconds or QR_REFRESH_SECONDS_DEFAULT
     })
 
 

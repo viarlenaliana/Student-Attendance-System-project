@@ -1,11 +1,239 @@
-{% extends 'base.html' %}{% block title %}Lecturer Dashboard{% endblock %}{% block content %}
-<h1>Lecturer Dashboard</h1><p>Welcome, {{ session.get('full_name','Lecturer') }}.</p>
+{% extends 'base.html' %}
+{% block title %}Lecturer Dashboard{% endblock %}
+
+{% block content %}
+<style>
+/* Scoped styles for the Lecturer dashboard's Assigned Classes section */
+.assigned-classes {
+    margin-top: 22px;
+    padding: 26px;
+    background: #fff;
+    border: 1px solid #e7ebf3;
+    border-radius: 18px;
+    box-shadow: 0 10px 28px rgba(25, 42, 85, .045);
+}
+.assigned-classes__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+.assigned-classes__eyebrow {
+    margin: 0 0 6px;
+    color: #71809b;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+}
+.assigned-classes__title {
+    margin: 0;
+    color: #17264a;
+    font-size: 22px;
+    font-weight: 800;
+}
+.assigned-classes__subtitle {
+    margin: 7px 0 0;
+    color: #8290a8;
+    font-size: 13px;
+}
+.assigned-classes__count {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 13px;
+    color: #405fce;
+    background: #eef2ff;
+    border: 1px solid #e1e8ff;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+}
+.assigned-classes__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(245px, 1fr));
+    gap: 15px;
+}
+.assigned-class-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 158px;
+    padding: 19px;
+    overflow: hidden;
+    background: linear-gradient(145deg, #fff 0%, #fbfcff 100%);
+    border: 1px solid #e7ebf4;
+    border-radius: 14px;
+    transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.assigned-class-card:hover {
+    transform: translateY(-2px);
+    border-color: #cbd6ff;
+    box-shadow: 0 10px 22px rgba(57, 86, 180, .08);
+}
+.assigned-class-card__top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+.assigned-class-card__icon {
+    display: grid;
+    width: 39px;
+    height: 39px;
+    place-items: center;
+    color: #4c68df;
+    background: #eef2ff;
+    border-radius: 11px;
+    font-size: 17px;
+    font-weight: 800;
+}
+.assigned-class-card__label {
+    margin: 0 0 5px;
+    color: #8995aa;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+}
+.assigned-class-card__code {
+    margin: 0;
+    color: #17264a;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -.02em;
+}
+.assigned-class-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 18px 0;
+}
+.assigned-class-card__tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 9px;
+    color: #65728b;
+    background: #f4f6fa;
+    border-radius: 7px;
+    font-size: 11px;
+    font-weight: 650;
+}
+.assigned-class-card__link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    margin-top: auto;
+    padding-top: 12px;
+    color: #4562d5;
+    border-top: 1px solid #edf0f6;
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: none;
+}
+.assigned-class-card__link:hover { color: #2947bd; }
+.assigned-classes__empty {
+    padding: 34px 20px;
+    text-align: center;
+    background: #fafbfe;
+    border: 1px dashed #d7deeb;
+    border-radius: 13px;
+}
+.assigned-classes__empty-icon {
+    display: grid;
+    width: 46px;
+    height: 46px;
+    margin: 0 auto 12px;
+    place-items: center;
+    color: #6479d9;
+    background: #eef2ff;
+    border-radius: 14px;
+    font-size: 20px;
+}
+.assigned-classes__empty h3 {
+    margin: 0 0 6px;
+    color: #263656;
+    font-size: 15px;
+}
+.assigned-classes__empty p {
+    margin: 0;
+    color: #8792a7;
+    font-size: 12px;
+}
+@media (max-width: 640px) {
+    .assigned-classes { padding: 18px; }
+    .assigned-classes__header { align-items: flex-start; }
+    .assigned-classes__title { font-size: 19px; }
+}
+</style>
+
+<h1>Lecturer Dashboard</h1>
+<p>Welcome, {{ session.get('full_name', 'Lecturer') }}.</p>
+
 <div class="dashboard-cards">
- <div class="card card-blue"><p class="card-title">My Classes</p><h3 class="card-value">{{ section_count }}</h3></div>
- <div class="card card-green"><p class="card-title">Enrolled Students</p><h3 class="card-value">{{ student_count }}</h3></div>
- <div class="card card-purple"><p class="card-title">Active Sessions</p><h3 class="card-value">{{ active_session_count }}</h3></div>
- <div class="card card-red"><p class="card-title">Total Sessions</p><h3 class="card-value">{{ session_count }}</h3></div>
+    <div class="card card-blue">
+        <p class="card-title">My Classes</p>
+        <h3 class="card-value">{{ section_count }}</h3>
+    </div>
+    <div class="card card-green">
+        <p class="card-title">Enrolled Students</p>
+        <h3 class="card-value">{{ student_count }}</h3>
+    </div>
+    <div class="card card-purple">
+        <p class="card-title">Active Sessions</p>
+        <h3 class="card-value">{{ active_session_count }}</h3>
+    </div>
+    <div class="card card-red">
+        <p class="card-title">Total Sessions</p>
+        <h3 class="card-value">{{ session_count }}</h3>
+    </div>
 </div>
-<section class="content-section"><h2>Assigned Classes</h2><p><a href="{{ url_for('lecturer.sections') }}">View all classes →</a></p>
-{% if sections %}<ul>{% for section in sections %}<li><a href="{{ url_for('lecturer.section_detail',section_id=section.section_id) }}">{{ section.section_code }}</a> — {{ section.semester }} / {{ section.academic_year }}</li>{% endfor %}</ul>{% else %}<p>No classes have been assigned to your account yet.</p>{% endif %}</section>
+
+<section class="assigned-classes">
+    <div class="assigned-classes__header">
+        <div>
+            <p class="assigned-classes__eyebrow">Your teaching workload</p>
+            <h2 class="assigned-classes__title">Assigned Classes</h2>
+            <p class="assigned-classes__subtitle">Quick access to the course sections assigned to you.</p>
+        </div>
+        <span class="assigned-classes__count">{{ sections|length }} assigned</span>
+    </div>
+
+    {% if sections %}
+        <div class="assigned-classes__grid">
+            {% for section in sections %}
+                <article class="assigned-class-card">
+                    <div class="assigned-class-card__top">
+                        <div>
+                            <p class="assigned-class-card__label">Course section</p>
+                            <h3 class="assigned-class-card__code">{{ section.section_code }}</h3>
+                        </div>
+                        <div class="assigned-class-card__icon" aria-hidden="true">▦</div>
+                    </div>
+
+                    <div class="assigned-class-card__meta">
+                        <span class="assigned-class-card__tag">Semester {{ section.semester }}</span>
+                        <span class="assigned-class-card__tag">{{ section.academic_year }}</span>
+                    </div>
+
+                    <a class="assigned-class-card__link"
+                       href="{{ url_for('lecturer.section_detail', section_id=section.section_id) }}">
+                        <span>Open class details</span>
+                        <span aria-hidden="true">→</span>
+                    </a>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="assigned-classes__empty">
+            <div class="assigned-classes__empty-icon" aria-hidden="true">▦</div>
+            <h3>No classes assigned yet</h3>
+            <p>Your assigned course sections will appear here when they are available.</p>
+        </div>
+    {% endif %}
+</section>
 {% endblock %}

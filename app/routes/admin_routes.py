@@ -1,12 +1,9 @@
 from datetime import datetime
 import re
 import uuid
-
-from datetime import datetime
-import re
 import secrets
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from sqlalchemy import or_, text
 from werkzeug.security import generate_password_hash
 
@@ -23,7 +20,6 @@ from app.models.attendance_record import AttendanceRecord
 from app.models.attendance_session import AttendanceSession
 from app.routes.auth import role_required
 from app.models.lecturer import Lecturer
-from app.models.attendance_session import AttendanceSession
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -138,6 +134,9 @@ def create_user():
         flash("Password must contain at least 8 characters.", "danger")
         return redirect(url_for("admin.users", role=role))
 
+    if role == "student" and not department_id:
+        default_department = Department.query.order_by(Department.department_id).first()
+        department_id = default_department.department_id if default_department else None
     if role in ("student", "lecturer"):
         if not department_id or db.session.get(Department, department_id) is None:
             flash("Please select a valid department for this account.", "danger")
@@ -418,80 +417,83 @@ def create_account():
         role = request.form.get("role", "").strip().lower()
         full_name = request.form.get("full_name", "").strip()
         email = request.form.get("email", "").strip().lower()
-        department_value = request.form.get("department_id", "").strip()
         personal_code = request.form.get("personal_code", "").strip()
+        department_value = request.form.get("department_id", "").strip()
         enrollment_year_value = request.form.get("enrollment_year", "").strip()
 
         if role not in ("student", "lecturer"):
             flash("Please select Student or Lecturer.", "danger")
-        elif not all((full_name, email, department_value, personal_code)):
+        elif not all((full_name, email, personal_code)):
             flash("Please fill in all required fields.", "danger")
-        elif User.query.filter(db.func.lower(User.email) == email).first():
-            flash("This email is already in use.", "danger")
+        elif User.query.filter(or_(User.username == personal_code, db.func.lower(User.email) == email)).first():
+            flash("Account ID or email is already in use.", "danger")
         elif Student.query.filter_by(student_code=personal_code).first() or Lecturer.query.filter_by(lecturer_code=personal_code).first():
             flash("This student/lecturer code already exists.", "danger")
         else:
-            try:
-                department_id = int(department_value)
-                if db.session.get(Department, department_id) is None:
-                    raise ValueError
-            except (TypeError, ValueError):
-                flash("Invalid department.", "danger")
+            # Students inherit the only/default department when no department is
+            # selected. This keeps department_id valid without forcing a choice.
+            department = None
+            if role == "student" and not department_value:
+                department = Department.query.order_by(Department.department_id).first()
+            elif department_value:
+                try:
+                    department = db.session.get(Department, int(department_value))
+                except (TypeError, ValueError):
+                    department = None
+            if department is None:
+                flash("Please select a valid department. Add a department first if none exists.", "danger")
             else:
                 enrollment_year = None
-                valid_year = True
-                if role == "student" and enrollment_year_value:
-                    try:
+                try:
+                    if role == "student" and enrollment_year_value:
                         enrollment_year = int(enrollment_year_value)
-                        if enrollment_year < 1900 or enrollment_year > 2100:
+                        if not 1900 <= enrollment_year <= 2100:
                             raise ValueError
-                    except ValueError:
-                        valid_year = False
-                        flash("Please enter a valid enrollment year.", "danger")
+                    user = User(
+                        username=personal_code,
+                        password_hash=generate_password_hash(DEFAULT_ACCOUNT_PASSWORD),
+                        full_name=full_name,
+                        email=email,
+                        role=role,
+                        is_active=True,
+                        must_change_password=True,
+                        status="ACTIVE",
+                    )
+                    db.session.add(user)
+                    db.session.flush()
 
-                if valid_year:
-                    try:
-                        user = User(
-                            username=f"{role}_{uuid.uuid4().hex}",
-                            password_hash=generate_password_hash(DEFAULT_ACCOUNT_PASSWORD),
-                            full_name=full_name,
-                            email=email,
-                            role=role,
-                            is_active=True,
-                            must_change_password=True,
-                            status="ACTIVE",
-                        )
-                        db.session.add(user)
-                        db.session.flush()
+                    if role == "student":
+                        db.session.add(Student(
+                            student_id=user.user_id,
+                            student_code=personal_code,
+                            department_id=department.department_id,
+                            enrollment_year=enrollment_year,
+                        ))
+                        id_label = "Student ID"
+                    else:
+                        db.session.add(Lecturer(
+                            lecturer_id=user.user_id,
+                            lecturer_code=personal_code,
+                            department_id=department.department_id,
+                        ))
+                        id_label = "Lecturer ID"
 
-                        if role == "student":
-                            db.session.add(Student(
-                                student_id=user.user_id,
-                                student_code=personal_code,
-                                department_id=department_id,
-                                enrollment_year=enrollment_year,
-                            ))
-                            id_label = "Student ID"
-                        else:
-                            db.session.add(Lecturer(
-                                lecturer_id=user.user_id,
-                                lecturer_code=personal_code,
-                                department_id=department_id,
-                            ))
-                            id_label = "Lecturer ID"
-
-                        db.session.commit()
-                        created_credentials = {
-                            "full_name": full_name,
-                            "role": role.title(),
-                            "id_label": id_label,
-                            "login_id": personal_code,
-                            "default_password": DEFAULT_ACCOUNT_PASSWORD,
-                        }
-                        flash("Account created successfully.", "success")
-                    except Exception:
-                        db.session.rollback()
-                        flash("Unable to create account. No data was saved.", "danger")
+                    db.session.commit()
+                    created_credentials = {
+                        "full_name": full_name,
+                        "role": role.title(),
+                        "id_label": id_label,
+                        "login_id": personal_code,
+                        "default_password": DEFAULT_ACCOUNT_PASSWORD,
+                    }
+                    flash("Account created successfully.", "success")
+                except ValueError:
+                    db.session.rollback()
+                    flash("Please enter a valid enrollment year.", "danger")
+                except Exception as error:
+                    db.session.rollback()
+                    current_app.logger.exception("Admin account creation failed")
+                    flash(f"Unable to create account: {error}", "danger")
 
     return render_template(
         "admin/create_account.html",
@@ -550,6 +552,38 @@ def create_department():
         flash(f"Unable to create department: {error}", "danger")
 
     return redirect(url_for("admin.departments"))
+
+
+@admin_bp.route("/departments/<int:department_id>/update", methods=["POST"])
+@role_required("admin")
+def update_department(department_id):
+    department = db.session.get(Department, department_id)
+    if department is None:
+        flash("Department not found.", "danger")
+        return redirect(url_for("admin.departments"))
+    name = request.form.get("department_name", "").strip()
+    description = request.form.get("description", "").strip()
+    if not name:
+        flash("Department name is required.", "danger")
+        return redirect(url_for("admin.departments"))
+    duplicate = Department.query.filter(
+        db.func.lower(Department.department_name) == name.lower(),
+        Department.department_id != department_id
+    ).first()
+    if duplicate:
+        flash("Department name already exists.", "danger")
+        return redirect(url_for("admin.departments"))
+    try:
+        department.department_name = name
+        department.description = description or None
+        db.session.commit()
+        flash("Department updated successfully.", "success")
+    except Exception as error:
+        db.session.rollback()
+        current_app.logger.exception("Update department failed")
+        flash(f"Unable to update department: {error}", "danger")
+    return redirect(url_for("admin.departments"))
+
 
 @admin_bp.route("/departments/<int:department_id>/delete", methods=["POST"])
 @role_required("admin")
@@ -979,209 +1013,136 @@ def delete_course_section(section_id):
 @admin_bp.route("/class-schedules")
 @role_required("admin")
 def class_schedules():
+    # Templates use a five-item tuple: schedule, section, course, lecturer, user.
     schedules = (
-        db.session.query(ClassSchedule, CourseSection, Course, User)
-        .join(
-            CourseSection,
-            ClassSchedule.section_id == CourseSection.section_id
-        )
+        db.session.query(ClassSchedule, CourseSection, Course, Lecturer, User)
+        .join(CourseSection, ClassSchedule.section_id == CourseSection.section_id)
         .join(Course, CourseSection.course_id == Course.course_id)
-        .join(User, CourseSection.lecturer_id == User.user_id)
-        .order_by(
-            ClassSchedule.day_of_week,
-            ClassSchedule.start_time
-        )
+        .join(Lecturer, CourseSection.lecturer_id == Lecturer.lecturer_id)
+        .join(User, Lecturer.lecturer_id == User.user_id)
+        .order_by(ClassSchedule.day_of_week, ClassSchedule.start_time)
         .all()
     )
-
+    # The create/edit forms also expect each section with its related course,
+    # lecturer profile and lecturer user record.
     sections = (
-        CourseSection.query
-        .filter_by(status="ACTIVE")
+        db.session.query(CourseSection, Course, Lecturer, User)
+        .join(Course, CourseSection.course_id == Course.course_id)
+        .join(Lecturer, CourseSection.lecturer_id == Lecturer.lecturer_id)
+        .join(User, Lecturer.lecturer_id == User.user_id)
+        .filter(CourseSection.status == "ACTIVE", User.role == "lecturer")
         .order_by(CourseSection.section_code)
         .all()
     )
-
-    return render_template(
-        "admin/class_schedules.html",
-        schedules=schedules,
-        sections=sections
-    )
+    day_names = {1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday", 6: "Saturday", 7: "Sunday"}
+    return render_template("admin/class_schedules.html", schedules=schedules, sections=sections, day_names=day_names)
 
 
 @admin_bp.route("/class-schedules/create", methods=["POST"])
 @role_required("admin")
 def create_class_schedule():
-    section_id = request.form.get("section_id", type=int)
-    day_of_week = request.form.get("day_of_week", type=int)
-    start_time_raw = request.form.get("start_time", "").strip()
-    end_time_raw = request.form.get("end_time", "").strip()
-    room = request.form.get("room", "").strip()
-    start_date_raw = request.form.get("start_date", "").strip()
-    end_date_raw = request.form.get("end_date", "").strip()
-
-    try:
-        if not all([
-            section_id, day_of_week, start_time_raw,
-            end_time_raw, start_date_raw, end_date_raw
-        ]):
-            raise ValueError("Please fill in all required fields.")
-
-        if not 1 <= day_of_week <= 7:
-            raise ValueError("Invalid day of week.")
-
-        section = db.session.get(CourseSection, section_id)
-
-        if section is None or section.status != "ACTIVE":
-            raise ValueError("Course section not found or inactive.")
-
-        start_time = datetime.strptime(
-            start_time_raw, "%H:%M"
-        ).time()
-
-        end_time = datetime.strptime(
-            end_time_raw, "%H:%M"
-        ).time()
-
-        start_date = datetime.strptime(
-            start_date_raw, "%Y-%m-%d"
-        ).date()
-
-        end_date = datetime.strptime(
-            end_date_raw, "%Y-%m-%d"
-        ).date()
-
-        if start_time >= end_time:
-            raise ValueError("End time must be after start time.")
-
-        if start_date > end_date:
-            raise ValueError("End date must not be before start date.")
-
-        schedule = ClassSchedule(
-            section_id=section_id,
-            day_of_week=day_of_week,
-            start_time=start_time,
-            end_time=end_time,
-            room=room or None,
-            start_date=start_date,
-            end_date=end_date
-        )
-
-        db.session.add(schedule)
-        db.session.commit()
-
-        flash("Class schedule created successfully.", "success")
-
-    except ValueError as error:
-        db.session.rollback()
-        flash(str(error), "danger")
-
-    except Exception as error:
-        db.session.rollback()
-        flash(f"Unable to create schedule: {error}", "danger")
-
-    return redirect(url_for("admin.class_schedules"))
-
-
-@admin_bp.route(
-    "/class-schedules/<int:schedule_id>/update",
-    methods=["POST"]
-)
-@role_required("admin")
-def update_class_schedule(schedule_id):
-    schedule = db.session.get(ClassSchedule, schedule_id)
-
-    if schedule is None:
-        flash("Schedule not found.", "danger")
-        return redirect(url_for("admin.class_schedules"))
-
     try:
         section_id = request.form.get("section_id", type=int)
         day_of_week = request.form.get("day_of_week", type=int)
         start_time_raw = request.form.get("start_time", "").strip()
         end_time_raw = request.form.get("end_time", "").strip()
         room = request.form.get("room", "").strip()
-        start_date_raw = request.form.get("start_date", "").strip()
-        end_date_raw = request.form.get("end_date", "").strip()
-
-        if not all([
-            section_id, day_of_week, start_time_raw,
-            end_time_raw, start_date_raw, end_date_raw
-        ]):
+        start_date_raw = (request.form.get("effective_from") or request.form.get("start_date") or "").strip()
+        end_date_raw = (request.form.get("effective_to") or request.form.get("end_date") or "").strip()
+        if not all([section_id, day_of_week, start_time_raw, end_time_raw, start_date_raw, end_date_raw]):
             raise ValueError("Please fill in all required fields.")
-
-        if not 1 <= day_of_week <= 7:
+        if day_of_week not in range(1, 8):
             raise ValueError("Invalid day of week.")
-
         section = db.session.get(CourseSection, section_id)
-
         if section is None or section.status != "ACTIVE":
             raise ValueError("Course section not found or inactive.")
-
-        start_time = datetime.strptime(
-            start_time_raw, "%H:%M"
-        ).time()
-
-        end_time = datetime.strptime(
-            end_time_raw, "%H:%M"
-        ).time()
-
-        start_date = datetime.strptime(
-            start_date_raw, "%Y-%m-%d"
-        ).date()
-
-        end_date = datetime.strptime(
-            end_date_raw, "%Y-%m-%d"
-        ).date()
-
+        start_time = datetime.strptime(start_time_raw, "%H:%M").time()
+        end_time = datetime.strptime(end_time_raw, "%H:%M").time()
+        effective_from = datetime.strptime(start_date_raw, "%Y-%m-%d").date()
+        effective_to = datetime.strptime(end_date_raw, "%Y-%m-%d").date()
         if start_time >= end_time:
             raise ValueError("End time must be after start time.")
+        if effective_from > effective_to:
+            raise ValueError("Effective To must not be before Effective From.")
+        db.session.add(ClassSchedule(section_id=section_id, day_of_week=day_of_week,
+            start_time=start_time, end_time=end_time, room=room or None,
+            effective_from=effective_from, effective_to=effective_to))
+        db.session.commit()
+        flash("Class schedule created successfully.", "success")
+    except ValueError as error:
+        db.session.rollback()
+        flash(str(error), "danger")
+    except Exception as error:
+        db.session.rollback()
+        current_app.logger.exception("Create class schedule failed")
+        flash(f"Unable to create schedule: {error}", "danger")
+    return redirect(url_for("admin.class_schedules"))
 
-        if start_date > end_date:
-            raise ValueError("End date must not be before start date.")
 
+@admin_bp.route("/class-schedules/<int:schedule_id>/update", methods=["POST"])
+@role_required("admin")
+def update_class_schedule(schedule_id):
+    schedule = db.session.get(ClassSchedule, schedule_id)
+    if schedule is None:
+        flash("Schedule not found.", "danger")
+        return redirect(url_for("admin.class_schedules"))
+    try:
+        section_id = request.form.get("section_id", type=int)
+        day_of_week = request.form.get("day_of_week", type=int)
+        start_time_raw = request.form.get("start_time", "").strip()
+        end_time_raw = request.form.get("end_time", "").strip()
+        room = request.form.get("room", "").strip()
+        start_date_raw = (request.form.get("effective_from") or request.form.get("start_date") or "").strip()
+        end_date_raw = (request.form.get("effective_to") or request.form.get("end_date") or "").strip()
+        if not all([section_id, day_of_week, start_time_raw, end_time_raw, start_date_raw, end_date_raw]):
+            raise ValueError("Please fill in all required fields.")
+        if day_of_week not in range(1, 8):
+            raise ValueError("Invalid day of week.")
+        section = db.session.get(CourseSection, section_id)
+        if section is None or section.status != "ACTIVE":
+            raise ValueError("Course section not found or inactive.")
+        start_time = datetime.strptime(start_time_raw, "%H:%M").time()
+        end_time = datetime.strptime(end_time_raw, "%H:%M").time()
+        effective_from = datetime.strptime(start_date_raw, "%Y-%m-%d").date()
+        effective_to = datetime.strptime(end_date_raw, "%Y-%m-%d").date()
+        if start_time >= end_time:
+            raise ValueError("End time must be after start time.")
+        if effective_from > effective_to:
+            raise ValueError("Effective To must not be before Effective From.")
         schedule.section_id = section_id
         schedule.day_of_week = day_of_week
         schedule.start_time = start_time
         schedule.end_time = end_time
         schedule.room = room or None
-        schedule.start_date = start_date
-        schedule.end_date = end_date
-
+        schedule.effective_from = effective_from
+        schedule.effective_to = effective_to
         db.session.commit()
         flash("Class schedule updated successfully.", "success")
-
     except ValueError as error:
         db.session.rollback()
         flash(str(error), "danger")
-
     except Exception as error:
         db.session.rollback()
+        current_app.logger.exception("Update class schedule failed")
         flash(f"Unable to update schedule: {error}", "danger")
-
     return redirect(url_for("admin.class_schedules"))
 
 
-@admin_bp.route(
-    "/class-schedules/<int:schedule_id>/delete",
-    methods=["POST"]
-)
+@admin_bp.route("/class-schedules/<int:schedule_id>/delete", methods=["POST"])
 @role_required("admin")
 def delete_class_schedule(schedule_id):
     schedule = db.session.get(ClassSchedule, schedule_id)
-
     if schedule is None:
         flash("Schedule not found.", "danger")
         return redirect(url_for("admin.class_schedules"))
-
     try:
         db.session.delete(schedule)
         db.session.commit()
         flash("Class schedule deleted successfully.", "success")
-
     except Exception as error:
         db.session.rollback()
+        current_app.logger.exception("Delete class schedule failed")
         flash(f"Unable to delete schedule: {error}", "danger")
-
     return redirect(url_for("admin.class_schedules"))
 
 
@@ -1194,57 +1155,44 @@ def delete_class_schedule(schedule_id):
 def enrollments():
     keyword = request.args.get("keyword", "").strip()
     section_id = request.args.get("section_id", type=int)
+    selected_status = request.args.get("status", "").strip().upper()
 
-    query = (
-        db.session.query(Enrollment, Student, User, CourseSection, Course)
-        .join(Student, Enrollment.student_id == Student.student_id)
-        .join(User, Student.student_id == User.user_id)
-        .join(CourseSection, Enrollment.section_id == CourseSection.section_id)
+    base_query = db.session.query(Enrollment, Student, User, CourseSection, Course) \
+        .join(Student, Enrollment.student_id == Student.student_id) \
+        .join(User, Student.student_id == User.user_id) \
+        .join(CourseSection, Enrollment.section_id == CourseSection.section_id) \
         .join(Course, CourseSection.course_id == Course.course_id)
-    )
-
     if keyword:
-        query = query.filter(
-            or_(
-                User.username.ilike(f"%{keyword}%"),
-                User.full_name.ilike(f"%{keyword}%"),
-                CourseSection.section_code.ilike(f"%{keyword}%"),
-                Course.course_code.ilike(f"%{keyword}%"),
-                Course.course_name.ilike(f"%{keyword}%")
-            )
-        )
-
+        base_query = base_query.filter(or_(
+            User.username.ilike(f"%{keyword}%"),
+            User.full_name.ilike(f"%{keyword}%"),
+            Student.student_code.ilike(f"%{keyword}%"),
+            CourseSection.section_code.ilike(f"%{keyword}%"),
+            Course.course_code.ilike(f"%{keyword}%"),
+            Course.course_name.ilike(f"%{keyword}%"),
+        ))
     if section_id:
-        query = query.filter(Enrollment.section_id == section_id)
+        base_query = base_query.filter(Enrollment.section_id == section_id)
+    if selected_status in ("ACTIVE", "INACTIVE"):
+        base_query = base_query.filter(Enrollment.status == selected_status)
 
-    enrollment_list = query.order_by(Enrollment.enrollment_id.desc()).all()
-
-    students = (
-        db.session.query(Student, User)
-        .join(User, Student.student_id == User.user_id)
-        .filter(
-            User.role == "student",
-            User.is_active.is_(True),
-            User.status == "ACTIVE"
-        )
-        .order_by(User.full_name)
-        .all()
+    enrollment_list = base_query.order_by(Enrollment.enrollment_id.desc()).all()
+    students = db.session.query(Student, User).join(User, Student.student_id == User.user_id) \
+        .filter(User.role == "student", User.is_active.is_(True), User.status == "ACTIVE") \
+        .order_by(User.full_name).all()
+    sections = CourseSection.query.order_by(CourseSection.section_code).all()
+    active_count = Enrollment.query.filter_by(status="ACTIVE").count()
+    inactive_count = Enrollment.query.filter_by(status="INACTIVE").count()
+    section_counts = dict(
+        db.session.query(Enrollment.section_id, db.func.count(Enrollment.enrollment_id))
+        .filter(Enrollment.status == "ACTIVE")
+        .group_by(Enrollment.section_id).all()
     )
-
-    sections = (
-        CourseSection.query
-        .filter_by(status="ACTIVE")
-        .order_by(CourseSection.section_code)
-        .all()
-    )
-
     return render_template(
-        "admin/enrollments.html",
-        enrollments=enrollment_list,
-        students=students,
-        sections=sections,
-        keyword=keyword,
-        selected_section_id=section_id
+        "admin/enrollments.html", enrollments=enrollment_list, students=students,
+        sections=sections, keyword=keyword, selected_section_id=section_id,
+        selected_status=selected_status, active_count=active_count,
+        inactive_count=inactive_count, section_counts=section_counts,
     )
 
 

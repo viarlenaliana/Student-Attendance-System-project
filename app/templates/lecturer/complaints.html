@@ -1,281 +1,109 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#101b3f">
+{% extends 'base.html' %}
 
-    <title>{% block title %}UniAttend{% endblock %} | UniAttend</title>
+{% block title %}Attendance Complaints{% endblock %}
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+{% block content %}
+<style>
+.complaints-page { max-width: 1200px; margin: 0 auto; }
+.complaints-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:24px; }
+.complaints-heading h1 { margin:0 0 6px; }
+.complaints-heading p { margin:0; color:#64748b; }
+.complaint-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-bottom:22px; }
+.complaint-summary-card { background:#fff; border:1px solid #e5eaf2; border-radius:14px; padding:18px 20px; }
+.complaint-summary-card span { display:block; color:#64748b; font-size:13px; }
+.complaint-summary-card strong { display:block; margin-top:6px; font-size:27px; color:#14213d; }
+.complaint-list { display:grid; gap:14px; }
+.complaint-card { background:#fff; border:1px solid #e5eaf2; border-radius:14px; padding:20px; }
+.complaint-card-top { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; }
+.complaint-card h3 { margin:0; font-size:17px; color:#172554; }
+.complaint-meta { display:flex; flex-wrap:wrap; gap:8px 18px; color:#64748b; font-size:13px; margin:8px 0 14px; }
+.complaint-content { background:#f8fafc; border-radius:10px; padding:13px 15px; line-height:1.55; white-space:pre-wrap; }
+.complaint-status { display:inline-block; border-radius:999px; padding:5px 10px; font-size:12px; font-weight:700; }
+.status-pending { color:#92400e; background:#fef3c7; }
+.status-approved { color:#166534; background:#dcfce7; }
+.status-rejected { color:#991b1b; background:#fee2e2; }
+.complaint-actions { margin-top:16px; border-top:1px solid #edf0f5; padding-top:15px; }
+.complaint-actions label { display:block; font-size:13px; font-weight:600; margin-bottom:7px; }
+.complaint-actions textarea { width:100%; min-height:70px; resize:vertical; border:1px solid #d7deea; border-radius:9px; padding:10px 12px; font:inherit; box-sizing:border-box; }
+.complaint-buttons { display:flex; gap:9px; margin-top:10px; }
+.complaint-buttons button { border:0; border-radius:8px; padding:9px 15px; font-weight:700; cursor:pointer; }
+.btn-approve { color:#fff; background:#16a34a; }
+.btn-reject { color:#fff; background:#dc2626; }
+.complaint-response { margin-top:12px; color:#475569; font-size:14px; }
+.complaint-empty { background:#fff; border:1px dashed #cbd5e1; border-radius:14px; padding:36px 20px; text-align:center; color:#64748b; }
+@media (max-width:700px) {
+  .complaint-summary { grid-template-columns:1fr; }
+  .complaints-heading { display:block; }
+  .complaint-card-top { align-items:flex-start; }
+}
+</style>
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-
-<body class="app-body">
-
-<header class="topbar">
-
-    <a class="brand"
-       href="{{ url_for('admin.dashboard') if session.get('role', '').lower() == 'admin' else (url_for('lecturer.dashboard') if session.get('role', '').lower() == 'lecturer' else url_for('main.home')) }}">
-
-        <span class="brand-mark">U</span>
-
-        <span class="brand-copy">
-            <strong>UniAttend</strong>
-            <small>ATTENDANCE PORTAL</small>
-        </span>
-    </a>
-
-    <div class="topbar-right">
-
-        <span class="topbar-caption">UniAttend Workspace</span>
-
-        <details class="profile-dropdown">
-
-            <summary class="profile-chip">
-
-                <span class="avatar">
-                    {{ (session.get('full_name') or session.get('username') or 'U')[0]|upper }}
-                </span>
-
-                <span class="profile-name">
-                    {{ session.get('full_name') or session.get('username') or 'User' }}
-                </span>
-
-                <span class="profile-arrow">⌄</span>
-
-            </summary>
-
-            <div class="profile-menu">
-
-                <div class="profile-menu-info">
-                    <strong>
-                        {{ session.get('full_name') or session.get('username') or 'User' }}
-                    </strong>
-
-                    <small>
-                        {{ session.get('role', 'student')|capitalize }}
-                    </small>
-                </div>
-
-                <a href="{{ url_for('auth.logout') }}">
-                    ↪ Sign out
-                </a>
-
-            </div>
-
-        </details>
-
+<div class="complaints-page">
+    <div class="complaints-heading">
+        <div>
+            <h1>Attendance Complaints</h1>
+            <p>Review and respond to attendance complaints submitted by students in your classes.</p>
+        </div>
     </div>
 
-</header>
-
-
-<div class="app-shell">
-
-    <aside class="sidebar">
-
-        {% if session.get('role', '').lower() == 'admin' %}
-
-            <div class="nav-label">ADMIN WORKSPACE</div>
-
-            <nav class="side-nav" aria-label="Admin navigation">
-
-                <a href="{{ url_for('admin.dashboard') }}"
-                   class="{% if request.endpoint == 'admin.dashboard' %}active{% endif %}">
-                    <span class="nav-icon">⌂</span>
-                    <span>Dashboard</span>
-                </a>
-
-                <div class="nav-label nav-section-label">MANAGEMENT</div>
-
-                <a href="{{ url_for('admin.users') }}"
-                   class="{% if request.endpoint in ['admin.users', 'admin.create_user', 'admin.edit_user', 'admin.update_user_status', 'admin.reset_user_password', 'admin.delete_user'] %}active{% endif %}">
-                    <span class="nav-icon">♙</span>
-                    <span>Accounts</span>
-                </a>
-
-                <a href="{{ url_for('admin.users', role='student') }}"
-                   class="{% if request.endpoint == 'admin.users' and request.args.get('role') == 'student' %}active{% endif %}">
-                    <span class="nav-icon">♧</span>
-                    <span>Students</span>
-                </a>
-
-                <a href="{{ url_for('admin.users', role='lecturer') }}"
-                   class="{% if request.endpoint == 'admin.users' and request.args.get('role') == 'lecturer' %}active{% endif %}">
-                    <span class="nav-icon">♙</span>
-                    <span>Lecturers</span>
-                </a>
-
-                <div class="nav-label nav-section-label">ACADEMIC MANAGEMENT</div>
-
-                <a href="{{ url_for('admin.courses') }}"
-                   class="{% if request.endpoint in ['admin.courses', 'admin.create_course', 'admin.update_course', 'admin.delete_course'] %}active{% endif %}">
-                    <span class="nav-icon">▤</span>
-                    <span>Courses</span>
-                </a>
-
-                <a href="{{ url_for('admin.course_sections') }}"
-                   class="{% if request.endpoint in ['admin.course_sections', 'admin.create_course_section', 'admin.update_course_section', 'admin.delete_course_section'] %}active{% endif %}">
-                    <span class="nav-icon">▦</span>
-                    <span>Course Sections</span>
-                </a>
-
-                <a href="{{ url_for('admin.class_schedules') }}"
-                   class="{% if request.endpoint in ['admin.class_schedules', 'admin.create_class_schedule', 'admin.update_class_schedule', 'admin.delete_class_schedule'] %}active{% endif %}">
-                    <span class="nav-icon">▣</span>
-                    <span>Class Schedules</span>
-                </a>
-
-                <a href="{{ url_for('admin.enrollments') }}"
-                   class="{% if request.endpoint in ['admin.enrollments', 'admin.create_enrollment', 'admin.update_enrollment_status'] %}active{% endif %}">
-                    <span class="nav-icon">♧</span>
-                    <span>Enrollments</span>
-                </a>
-
-                <div class="nav-label nav-section-label">ATTENDANCE</div>
-
-                <a href="{{ url_for('admin.attendance_monitoring') }}"
-                   class="{% if request.endpoint == 'admin.attendance_monitoring' %}active{% endif %}">
-                    <span class="nav-icon">◷</span>
-                    <span>Attendance Monitoring</span>
-                </a>
-
-                <a href="{{ url_for('admin.attendance_statistics') }}"
-                   class="{% if request.endpoint == 'admin.attendance_statistics' %}active{% endif %}">
-                    <span class="nav-icon">▥</span>
-                    <span>Attendance Statistics</span>
-                </a>
-
-                <div class="nav-label nav-section-label">SYSTEM SETTINGS</div>
-
-                <a href="{{ url_for('admin.departments') }}"
-                   class="{% if request.endpoint in ['admin.departments', 'admin.create_department', 'admin.update_department', 'admin.delete_department'] %}active{% endif %}">
-                    <span class="nav-icon">⚙</span>
-                    <span>Departments</span>
-                </a>
-
-            </nav>
-
-        {% elif session.get('role', '').lower() == 'lecturer' %}
-
-            <div class="nav-label">LECTURER WORKSPACE</div>
-            <nav class="side-nav" aria-label="Lecturer navigation">
-                <a href="{{ url_for('lecturer.dashboard') }}" class="{% if request.endpoint == 'lecturer.dashboard' %}active{% endif %}"><span class="nav-icon">⌂</span><span>Dashboard</span></a>
-                <a href="{{ url_for('lecturer.sections') }}" class="{% if request.endpoint in ['lecturer.sections', 'lecturer.section_detail'] %}active{% endif %}"><span class="nav-icon">▦</span><span>My Classes</span></a>
-                <a href="{{ url_for('lecturer.schedule') }}" class="{% if request.endpoint == 'lecturer.schedule' %}active{% endif %}"><span class="nav-icon">▣</span><span>Teaching Schedule</span></a>
-                <a href="{{ url_for('lecturer.complaints') }}" class="{% if request.endpoint == 'lecturer.complaints' %}active{% endif %}"><span class="nav-icon">✉</span><span>Attendance Complaints</span></a>
-            </nav>
-
-        {% else %}
-
-            <div class="nav-label">STUDENT WORKSPACE</div>
-
-            <nav class="side-nav" aria-label="Student navigation">
-
-                <a href="{{ url_for('main.home') }}"
-                   class="{% if request.endpoint == 'main.home' %}active{% endif %}">
-                    <span class="nav-icon">⌂</span>
-                    <span>Dashboard</span>
-                </a>
-
-                <a href="{{ url_for('main.schedule') }}"
-                   class="{% if request.endpoint == 'main.schedule' %}active{% endif %}">
-                    <span class="nav-icon">▦</span>
-                    <span>My Schedule</span>
-                </a>
-
-                <a href="{{ url_for('main.courses') }}"
-                   class="{% if request.endpoint == 'main.courses' %}active{% endif %}">
-                    <span class="nav-icon">▤</span>
-                    <span>My Courses</span>
-                </a>
-
-                <a href="{{ url_for('main.attendance_history') }}"
-                   class="{% if request.endpoint == 'main.attendance_history' %}active{% endif %}">
-                    <span class="nav-icon">◷</span>
-                    <span>Attendance History</span>
-                </a>
-
-                <a href="{{ url_for('main.statistics') }}"
-                   class="{% if request.endpoint == 'main.statistics' %}active{% endif %}">
-                    <span class="nav-icon">▥</span><span>Statistics</span>
-                </a>
-                <a href="{{ url_for('main.attendance') }}" class="{% if request.endpoint == 'main.attendance' %}active{% endif %}">
-                    <span class="nav-icon">✓</span><span>Check In</span>
-                </a>
-                <a href="{{ url_for('main.student_scan_page') }}" class="{% if request.endpoint == 'main.student_scan_page' %}active{% endif %}">
-                    <span class="nav-icon">▣</span><span>Scan QR</span>
-                </a>
-                <a href="{{ url_for('main.student_complaints') }}" class="{% if request.endpoint == 'main.student_complaints' %}active{% endif %}">
-                    <span class="nav-icon">✉</span><span>My Complaints</span>
-                </a>
-
-            </nav>
-
-        {% endif %}
-
-
-        <div class="sidebar-note">
-
-            <span class="note-icon">✦</span>
-
-            <div>
-                <strong>
-                    {% if session.get('role', '').lower() == 'admin' %}Manage your system{% elif session.get('role', '').lower() == 'lecturer' %}Manage your classes{% else %}Stay on track{% endif %}
-                </strong>
-
-                <p>
-                    {% if session.get('role', '').lower() == 'admin' %}Manage users and academic information.{% elif session.get('role', '').lower() == 'lecturer' %}Open sessions and manage attendance.{% else %}Keep your attendance up to date.{% endif %}
-                </p>
-            </div>
-
+    {% set pending_count = complaints|selectattr('0.status', 'equalto', 'PENDING')|list|length %}
+    {% set approved_count = complaints|selectattr('0.status', 'equalto', 'APPROVED')|list|length %}
+    <div class="complaint-summary">
+        <div class="complaint-summary-card">
+            <span>Total complaints</span>
+            <strong>{{ complaints|length }}</strong>
         </div>
-
-
-        <div class="sidebar-footer">
-            UNIATTEND <span>•</span> 2026
+        <div class="complaint-summary-card">
+            <span>Pending review</span>
+            <strong>{{ pending_count }}</strong>
         </div>
+        <div class="complaint-summary-card">
+            <span>Approved</span>
+            <strong>{{ approved_count }}</strong>
+        </div>
+    </div>
 
-    </aside>
-
-
-    <main class="main-content">
-
-        <div class="content-inner">
-
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    <div class="flash-list">
-
-                        {% for category, message in messages %}
-                            <div class="flash-message flash-{{ category }}">
-                                {{ message }}
-                            </div>
-                        {% endfor %}
-
+    {% if complaints %}
+        <div class="complaint-list">
+            {% for complaint, record, attendance_session, student, user, course, section in complaints %}
+                <article class="complaint-card">
+                    <div class="complaint-card-top">
+                        <h3>{{ user.full_name }} <small style="font-weight:400;color:#64748b;">({{ student.student_code }})</small></h3>
+                        <span class="complaint-status status-{{ complaint.status|lower }}">{{ complaint.status|replace('_', ' ')|title }}</span>
                     </div>
-                {% endif %}
-            {% endwith %}
 
-            {% block content %}{% endblock %}
+                    <div class="complaint-meta">
+                        <span><strong>Course:</strong> {{ course.course_code }} — {{ course.course_name }}</span>
+                        <span><strong>Class:</strong> {{ section.section_code }}</span>
+                        <span><strong>Session:</strong> {{ attendance_session.session_date.strftime('%d/%m/%Y') }}</span>
+                        <span><strong>Attendance:</strong> {{ record.attendance_status }}</span>
+                        <span><strong>Submitted:</strong> {{ complaint.created_at.strftime('%d/%m/%Y %H:%M') if complaint.created_at else '—' }}</span>
+                    </div>
 
+                    <div class="complaint-content">{{ complaint.content }}</div>
+
+                    {% if complaint.status == 'PENDING' %}
+                        <form class="complaint-actions" method="POST" action="{{ url_for('lecturer.resolve_complaint', complaint_id=complaint.complaint_id) }}">
+                            <label for="response-{{ complaint.complaint_id }}">Response (optional)</label>
+                            <textarea id="response-{{ complaint.complaint_id }}" name="response" placeholder="Enter a response to the student..."></textarea>
+                            <div class="complaint-buttons">
+                                <button class="btn-approve" type="submit" name="decision" value="APPROVED">Approve</button>
+                                <button class="btn-reject" type="submit" name="decision" value="REJECTED" onclick="return confirm('Reject this complaint?')">Reject</button>
+                            </div>
+                        </form>
+                    {% else %}
+                        <div class="complaint-response">
+                            <strong>Lecturer response:</strong> {{ complaint.response or 'No response provided.' }}
+                        </div>
+                    {% endif %}
+                </article>
+            {% endfor %}
         </div>
-
-
-        <footer class="page-footer">
-            © 2026 UniAttend
-            <span>·</span>
-            Student Attendance Management System
-        </footer>
-
-    </main>
-
+    {% else %}
+        <div class="complaint-empty">
+            <h3 style="margin:0 0 8px;color:#334155;">No attendance complaints</h3>
+            <p style="margin:0;">There are currently no complaints submitted for your classes.</p>
+        </div>
+    {% endif %}
 </div>
-
-
-</body>
-</html>
+{% endblock %}

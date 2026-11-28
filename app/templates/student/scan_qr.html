@@ -1,10 +1,142 @@
-{% extends 'base.html' %}{% block title %}Scan Attendance QR{% endblock %}{% block content %}
-<h1>Scan Attendance QR</h1><p>Allow camera access when your browser asks. Camera scanning requires HTTPS online or localhost.</p><div id="reader" style="max-width:460px"></div><p id="message" role="status"></p><div id="password-box" hidden><label>Attendance password <input id="attendance-password" type="password"></label><button id="confirm">Confirm attendance</button></div>
-<script src="https://unpkg.com/html5-qrcode"></script><script>
-let scanner, token='', stopped=false;const msg=document.getElementById('message'),box=document.getElementById('password-box');
-function say(t){msg.textContent=t;}
-async function send(){try{const r=await fetch('{{ url_for("main.scan_qr_attendance") }}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,password:document.getElementById('attendance-password').value})});const d=await r.json();say(d.message||'Request completed.');if(d.requires_password){box.hidden=false;return;}if(d.success){box.hidden=true;return;} }catch(e){say('Could not contact the server. Try again.');}}
-async function onScan(text){if(stopped)return;stopped=true;token=text.trim();try{await scanner.stop();}catch(e){}await send();}
-document.getElementById('confirm').addEventListener('click',send);
-(async()=>{if(!window.Html5Qrcode){say('QR scanner library did not load.');return;}scanner=new Html5Qrcode('reader');try{await scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:240,height:240}},onScan,()=>{});say('Camera ready. Point it at the lecturer QR code.');}catch(e){say('Cannot start camera. Check browser camera permission and use HTTPS or localhost.');}})();
-</script>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Scan Attendance QR{% endblock %}
+{% block content %}
+<style>
+.student-scan-page { width:100%; max-width:850px; margin:0 auto; }
+.scan-heading { margin:2px 0 22px; }
+.scan-eyebrow { margin:0 0 7px; color:#5875e8; font-size:10px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; }
+.scan-heading h1 { margin:0; color:#182747; font-size:clamp(25px,5vw,32px); font-weight:800; letter-spacing:-.8px; }
+.scan-heading p { margin:8px 0 0; color:#7c879d; font-size:13px; line-height:1.65; }
+.scan-card { padding:22px; background:#fff; border:1px solid #e7ebf3; border-radius:18px; box-shadow:0 10px 30px rgba(26,43,86,.055); }
+.scan-card-heading { display:flex; align-items:center; gap:12px; margin-bottom:17px; }
+.scan-icon { display:grid; flex:0 0 42px; width:42px; height:42px; place-items:center; color:#4568e8; background:#eef2ff; border-radius:12px; font-size:20px; }
+.scan-card-heading h2 { margin:0; color:#1d2c4b; font-size:16px; font-weight:800; }
+.scan-card-heading p { margin:3px 0 0; color:#8994a8; font-size:11px; }
+.scan-camera-frame { width:100%; max-width:520px; min-height:230px; margin:0 auto; padding:12px; background:#f7f9fd; border:1px solid #e8edf5; border-radius:15px; }
+#reader { width:100%; max-width:100%; overflow:hidden; border:0!important; border-radius:10px; background:#fff; }
+#reader video { width:100%!important; max-width:100%!important; object-fit:cover; border-radius:9px; }
+#reader img { max-width:100%; }
+#reader__dashboard_section_csr button, #reader button { min-height:38px; padding:8px 13px; color:#fff!important; background:#4968e8!important; border:0!important; border-radius:8px!important; font-size:12px!important; font-weight:700!important; }
+#reader select { max-width:100%; min-height:38px; padding:7px 10px; border:1px solid #dce3ef; border-radius:8px; }
+.scan-tip { display:flex; align-items:flex-start; gap:10px; max-width:520px; margin:15px auto 0; padding:12px 14px; color:#64728c; background:#f5f7fc; border-radius:10px; font-size:11px; line-height:1.55; }
+.scan-tip span { color:#4568e8; font-size:15px; }
+.scan-message { display:none; max-width:520px; margin:15px auto 0; padding:13px 15px; color:#40516e; background:#f2f5fb; border:1px solid #e4eaf5; border-radius:10px; font-size:12px; line-height:1.55; }
+.scan-message.is-visible { display:block; }
+.scan-message.is-success { color:#147653; background:#eaf8f1; border-color:#cdeedd; }
+.scan-message.is-error { color:#b83f50; background:#fff1f2; border-color:#ffd9de; }
+.scan-password { max-width:520px; margin:16px auto 0; padding:17px; background:#fbfcff; border:1px solid #e7ebf3; border-radius:12px; }
+.scan-password label { display:block; margin-bottom:8px; color:#53617b; font-size:12px; font-weight:700; }
+.scan-password input { display:block; width:100%; min-height:44px; padding:10px 12px; color:#253657; background:#fff; border:1px solid #dce3ef; border-radius:9px; }
+.scan-password button { width:100%; min-height:43px; margin-top:11px; color:#fff; background:#4968e8; border:0; border-radius:9px; font-size:12px; font-weight:800; cursor:pointer; }
+.scan-footnote { margin:15px 0 0; color:#98a2b4; font-size:10px; text-align:center; }
+@media(max-width:680px) {
+ .student-scan-page { padding:0 1px 12px; }
+ .scan-heading { margin:0 0 16px; }
+ .scan-heading h1 { font-size:25px; }
+ .scan-heading p { font-size:12px; }
+ .scan-card { padding:15px; border-radius:15px; }
+ .scan-camera-frame { min-height:190px; padding:8px; }
+ .scan-tip { font-size:10px; }
+}
+</style>
+
+<div class="student-scan-page">
+    <header class="scan-heading">
+        <p class="scan-eyebrow">Student workspace</p>
+        <h1>Scan Attendance QR</h1>
+        <p>Scan the QR code displayed by your lecturer to record your attendance.</p>
+    </header>
+
+    <section class="scan-card">
+        <div class="scan-card-heading">
+            <div class="scan-icon" aria-hidden="true">▣</div>
+            <div>
+                <h2>Camera scanner</h2>
+                <p>Use your phone's rear camera for the best result.</p>
+            </div>
+        </div>
+
+        <div class="scan-camera-frame">
+            <div id="reader"></div>
+        </div>
+
+        <div class="scan-tip">
+            <span aria-hidden="true">ⓘ</span>
+            <div>Allow camera access when your browser asks. Camera scanning requires a secure HTTPS connection. Keep the QR code inside the camera frame.</div>
+        </div>
+
+        <p id="message" class="scan-message" role="status" aria-live="polite"></p>
+
+        <div id="password-box" class="scan-password" hidden>
+            <label for="attendance-password">Attendance password</label>
+            <input id="attendance-password" type="password" autocomplete="one-time-code" placeholder="Enter the password provided by your lecturer">
+            <button id="confirm" type="button">Confirm attendance</button>
+        </div>
+    </section>
+    <p class="scan-footnote">UniAttend · Secure student attendance check-in</p>
+</div>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+let scanner, token = '', stopped = false;
+const msg = document.getElementById('message');
+const box = document.getElementById('password-box');
+
+function say(text, kind = '') {
+    msg.textContent = text;
+    msg.className = 'scan-message is-visible' + (kind ? ' is-' + kind : '');
+}
+
+async function send() {
+    try {
+        const response = await fetch('{{ url_for("main.scan_qr_attendance") }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                token,
+                password: document.getElementById('attendance-password').value
+            })
+        });
+        const data = await response.json();
+        say(data.message || 'Request completed.', data.success ? 'success' : (data.requires_password ? '' : 'error'));
+        if (data.requires_password) {
+            box.hidden = false;
+            document.getElementById('attendance-password').focus();
+            return;
+        }
+        if (data.success) box.hidden = true;
+    } catch (error) {
+        say('Could not contact the server. Please try again.', 'error');
+    }
+}
+
+async function onScan(text) {
+    if (stopped) return;
+    stopped = true;
+    token = text.trim();
+    try { await scanner.stop(); } catch (error) {}
+    await send();
+}
+
+document.getElementById('confirm').addEventListener('click', send);
+
+(async () => {
+    if (!window.Html5Qrcode) {
+        say('The QR scanner could not load. Check your internet connection and reload this page.', 'error');
+        return;
+    }
+    scanner = new Html5Qrcode('reader');
+    try {
+        await scanner.start(
+            {facingMode: 'environment'},
+            {fps: 10, qrbox: {width: 240, height: 240}},
+            onScan,
+            () => {}
+        );
+        say('Camera is ready. Point it at the lecturer QR code.');
+    } catch (error) {
+        say('Cannot start the camera. Allow camera permission in your browser and make sure you are using HTTPS.', 'error');
+    }
+})();
+</script>
+{% endblock %}

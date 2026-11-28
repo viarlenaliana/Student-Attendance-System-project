@@ -1,14 +1,275 @@
-{% extends 'base.html' %}{% block title %}Class Details{% endblock %}{% block content %}
-<h1>{{ course.course_code }} — {{ course.course_name }}</h1><p>Section {{ section.section_code }} · {{ section.semester }} · {{ section.academic_year }}</p>
-<section class="content-section"><h2>Open Attendance Session</h2>
-<form method="post" action="{{ url_for('lecturer.create_session',section_id=section.section_id) }}" class="form-grid">
-<label>Attendance method<select name="attendance_method" id="method" required><option value="QR_CODE">QR Code</option><option value="PASSWORD">Password</option><option value="QR_PASSWORD">QR + Password</option><option value="MANUAL">Manual roll-call</option></select></label>
-<label>Start time (optional)<input type="time" name="start_time"></label><label>End time (optional)<input type="time" name="end_time"></label>
-<label id="password-field">Attendance password<input type="text" name="attendance_password" placeholder="Required for Password / QR + Password"></label>
-<label class="inline"><input type="checkbox" name="allow_makeup"> Allow make-up attendance</label>
-<button type="submit">Open attendance</button></form><p class="muted">If time is left blank, today's class schedule is used when available. QR codes rotate every 30 seconds.</p></section>
-<section class="content-section"><h2>Attendance Sessions</h2><table><thead><tr><th>Date</th><th>Method</th><th>Status</th><th>Action</th></tr></thead><tbody>{% for item in sessions %}<tr><td>{{ item.session_date }}</td><td>{{ item.attendance_method }}</td><td>{{ item.status }}</td><td><a href="{{ url_for('lecturer.session_detail',session_id=item.session_id) }}">Open</a></td></tr>{% else %}<tr><td colspan="4">No sessions created yet.</td></tr>{% endfor %}</tbody></table></section>
-<section class="content-section"><h2>Enrolled Students ({{ students|length }})</h2><table><thead><tr><th>Student</th><th>Student Code</th><th>Status</th></tr></thead><tbody>{% for student,user,enrollment in students %}<tr><td>{{ user.full_name }}</td><td>{{ student.student_code }}</td><td>{{ enrollment.status }}</td></tr>{% else %}<tr><td colspan="3">No active enrollments.</td></tr>{% endfor %}</tbody></table></section>
-<section class="content-section"><h2>Class Schedule</h2><table><thead><tr><th>Day</th><th>Time</th><th>Room</th><th>Effective</th></tr></thead><tbody>{% for item in schedules %}<tr><td>{{ ['','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][item.day_of_week] }}</td><td>{{ item.start_time }}–{{ item.end_time }}</td><td>{{ item.room or '—' }}</td><td>{{ item.effective_from }} to {{ item.effective_to }}</td></tr>{% else %}<tr><td colspan="4">No schedule configured.</td></tr>{% endfor %}</tbody></table></section>
-<script>const m=document.getElementById('method'),p=document.getElementById('password-field');function togglePassword(){p.style.display=['PASSWORD','QR_PASSWORD'].includes(m.value)?'block':'none';}m.addEventListener('change',togglePassword);togglePassword();</script>
+{% extends 'base.html' %}
+{% block title %}Class Details{% endblock %}
+
+{% block content %}
+<style>
+/* Scoped layout: Lecturer > Class details */
+.class-page { max-width: 1280px; margin: 0 auto; }
+.class-page__heading { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; margin-bottom:24px; }
+.class-page__eyebrow { margin:0 0 7px; color:#8190aa; font-size:10px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; }
+.class-page__title { margin:0; color:#17264a; font-size:28px; line-height:1.2; font-weight:800; }
+.class-page__subtitle { margin:8px 0 0; color:#7b89a2; font-size:13px; }
+.class-page__badge { flex:0 0 auto; padding:9px 13px; color:#4562d5; background:#edf1ff; border:1px solid #dfe6ff; border-radius:10px; font-size:12px; font-weight:800; }
+.class-panel { margin:0 0 20px; padding:24px; background:#fff; border:1px solid #e7ebf3; border-radius:16px; box-shadow:0 8px 24px rgba(26,43,86,.035); }
+.class-panel__header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
+.class-panel__title { margin:0; color:#1b2b4d; font-size:18px; font-weight:800; }
+.class-panel__hint { margin:5px 0 0; color:#8a96aa; font-size:12px; }
+.session-form { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:16px; align-items:end; padding:19px; background:#f8faff; border:1px solid #e8edf8; border-radius:13px; }
+.session-form label { display:flex; flex-direction:column; gap:7px; min-width:0; color:#586783; font-size:12px; font-weight:700; }
+.session-form input:not([type=checkbox]), .session-form select { width:100%; min-height:42px; box-sizing:border-box; padding:9px 11px; color:#253657; background:#fff; border:1px solid #dce3ef; border-radius:9px; font:inherit; font-size:13px; }
+.session-form input:focus, .session-form select:focus { outline:3px solid rgba(76,105,225,.12); border-color:#8195ef; }
+.session-form small { color:#8995a9; font-size:10px; font-weight:500; line-height:1.4; }
+.field-method { grid-column:span 4; }
+.field-time { grid-column:span 2; }
+.field-password { grid-column:span 4; }
+.field-qr { grid-column:span 4; }
+.field-makeup { grid-column:span 4; display:flex!important; flex-direction:row!important; align-items:center; gap:9px!important; min-height:42px; }
+.field-makeup input { width:16px; height:16px; accent-color:#4c68df; }
+.session-form__actions { grid-column:span 8; display:flex; justify-content:flex-end; align-items:center; gap:12px; }
+.session-form__note { color:#8793a8; font-size:11px; }
+.session-submit { min-height:42px; padding:0 19px; color:#fff; background:#4968e8; border:0; border-radius:9px; box-shadow:0 5px 12px rgba(73,104,232,.18); font-size:12px; font-weight:800; cursor:pointer; }
+.session-submit:hover { background:#3857d4; }
+.data-table-wrap { width:100%; overflow-x:auto; border:1px solid #e9edf4; border-radius:12px; }
+.table-tools { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; }
+.table-search { width:min(100%, 330px); min-height:39px; box-sizing:border-box; padding:9px 12px 9px 36px; color:#253657; background:#fff; border:1px solid #dce3ef; border-radius:9px; font:inherit; font-size:12px; outline:none; }
+.table-search:focus { border-color:#8195ef; box-shadow:0 0 0 3px rgba(76,105,225,.10); }
+.table-search-wrap { position:relative; flex:1; }
+.table-search-wrap:before { content:'⌕'; position:absolute; left:13px; top:7px; color:#8794aa; font-size:19px; line-height:1; }
+.table-result-count { color:#8995a9; font-size:11px; white-space:nowrap; }
+.table-no-match { display:none; padding:18px!important; color:#8995a9!important; text-align:center; }
+
+.class-table { width:100%; border-collapse:collapse; font-size:12px; }
+.class-table th { padding:13px 15px; color:#7e8ba3; background:#f7f9fc; font-size:10px; font-weight:800; letter-spacing:.08em; text-align:left; text-transform:uppercase; white-space:nowrap; }
+.class-table td { padding:14px 15px; color:#43516c; border-top:1px solid #edf0f5; vertical-align:middle; }
+.class-table tbody tr:hover { background:#fbfcff; }
+.table-primary { color:#1e2d4d!important; font-weight:750; }
+.table-link { color:#4967df; font-weight:800; text-decoration:none; }
+.table-link:hover { text-decoration:underline; }
+.status-pill { display:inline-flex; padding:5px 9px; border-radius:999px; color:#53627d; background:#f0f3f8; font-size:10px; font-weight:800; }
+.status-pill--open, .status-pill--active { color:#16734b; background:#e5f7ee; }
+.status-pill--closed { color:#647087; background:#eef1f5; }
+.class-lower-grid { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr); gap:20px; }
+.class-empty { padding:24px 16px!important; color:#8a96aa!important; text-align:center; }
+@media(max-width:900px) {
+ .field-method,.field-password,.field-qr { grid-column:span 6; }
+ .field-time { grid-column:span 3; }
+ .field-makeup { grid-column:span 6; }
+ .session-form__actions { grid-column:span 6; }
+ .class-lower-grid { grid-template-columns:1fr; }
+}
+@media(max-width:600px) {
+ .class-page__heading { display:block; }
+ .class-page__badge { display:inline-flex; margin-top:14px; }
+ .class-panel { padding:17px; }
+ .session-form { grid-template-columns:1fr; }
+ .field-method,.field-time,.field-password,.field-qr,.field-makeup,.session-form__actions { grid-column:1; }
+ .session-form__actions { justify-content:stretch; flex-direction:column; align-items:stretch; }
+ .session-submit { width:100%; }
+}
+</style>
+
+<div class="class-page">
+    <header class="class-page__heading">
+        <div>
+            <p class="class-page__eyebrow">Lecturer workspace / My classes</p>
+            <h1 class="class-page__title">{{ course.course_code }} — {{ course.course_name }}</h1>
+            <p class="class-page__subtitle">Section {{ section.section_code }} <span aria-hidden="true">·</span> Semester {{ section.semester }} <span aria-hidden="true">·</span> {{ section.academic_year }}</p>
+        </div>
+        <span class="class-page__badge">Class details</span>
+    </header>
+
+    <section class="class-panel">
+        <div class="class-panel__header">
+            <div>
+                <h2 class="class-panel__title">Open attendance session</h2>
+                <p class="class-panel__hint">Choose how students will check in for this class.</p>
+            </div>
+        </div>
+
+        <form method="post" action="{{ url_for('lecturer.create_session', section_id=section.section_id) }}" class="session-form">
+            <label class="field-method">
+                Attendance method
+                <select name="attendance_method" id="method" required>
+                    <option value="QR_CODE">QR Code</option>
+                    <option value="PASSWORD">Password</option>
+                    <option value="QR_PASSWORD">QR + Password</option>
+                    <option value="MANUAL">Manual roll-call</option>
+                </select>
+            </label>
+
+            <label class="field-time">
+                Start time <span style="font-weight:500;color:#9aa4b6;">(optional)</span>
+                <input type="time" name="start_time">
+            </label>
+
+            <label class="field-time">
+                End time <span style="font-weight:500;color:#9aa4b6;">(optional)</span>
+                <input type="time" name="end_time">
+            </label>
+
+            <label id="password-field" class="field-password">
+                Attendance password
+                <input type="text" name="attendance_password" placeholder="Enter session password">
+            </label>
+
+            <label id="qr-refresh-field" class="field-qr">
+                QR refresh interval
+                <input type="number" name="qr_refresh_seconds" value="30" min="5" max="300" step="1">
+                <small>QR refreshes every 5–300 seconds. Default: 30 seconds.</small>
+            </label>
+
+            <label class="field-makeup">
+                <input type="checkbox" name="allow_makeup">
+                Allow make-up attendance
+            </label>
+
+            <div class="session-form__actions">
+                <span class="session-form__note">Leave time blank to use today's class schedule when available.</span>
+                <button type="submit" class="session-submit">Open attendance</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="class-panel">
+        <div class="class-panel__header">
+            <div>
+                <h2 class="class-panel__title">Attendance sessions</h2>
+                <p class="class-panel__hint">Review previous sessions or reopen one to view its attendance.</p>
+            </div>
+            <span class="class-page__badge">{{ sessions|length }} sessions</span>
+        </div>
+
+        <div class="table-tools">
+            <div class="table-search-wrap">
+                <input class="table-search" type="search" id="session-search" placeholder="Search by date, method or status..." aria-label="Search attendance sessions">
+            </div>
+            <span class="table-result-count" id="session-count">{{ sessions|length }} sessions</span>
+        </div>
+        <div class="data-table-wrap">
+            <table class="class-table" id="sessions-table">
+                <thead><tr><th>Date</th><th>Method</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody>
+                {% for item in sessions %}
+                    <tr>
+                        <td class="table-primary">{{ item.session_date }}</td>
+                        <td>{{ item.attendance_method|replace('_', ' ')|title }}</td>
+                        <td><span class="status-pill status-pill--{{ item.status|lower }}">{{ item.status|replace('_', ' ')|title }}</span></td>
+                        <td><a class="table-link" href="{{ url_for('lecturer.session_detail', session_id=item.session_id) }}">View session →</a></td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="4" class="class-empty">No attendance sessions have been created for this class yet.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <div class="class-lower-grid">
+        <section class="class-panel">
+            <div class="class-panel__header">
+                <div>
+                    <h2 class="class-panel__title">Enrolled students</h2>
+                    <p class="class-panel__hint">Students currently enrolled in this section.</p>
+                </div>
+                <span class="class-page__badge">{{ students|length }} students</span>
+            </div>
+            <div class="table-tools">
+                <div class="table-search-wrap">
+                    <input class="table-search" type="search" id="student-search" placeholder="Search student name or code..." aria-label="Search enrolled students">
+                </div>
+                <span class="table-result-count" id="student-count">{{ students|length }} students</span>
+            </div>
+            <div class="data-table-wrap">
+                <table class="class-table" id="students-table">
+                    <thead><tr><th>Student</th><th>Student code</th><th>Status</th></tr></thead>
+                    <tbody>
+                    {% for student, user, enrollment in students %}
+                        <tr>
+                            <td class="table-primary">{{ user.full_name }}</td>
+                            <td>{{ student.student_code }}</td>
+                            <td><span class="status-pill status-pill--{{ enrollment.status|lower }}">{{ enrollment.status|replace('_', ' ')|title }}</span></td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="3" class="class-empty">No active enrollments.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="class-panel">
+            <div class="class-panel__header">
+                <div>
+                    <h2 class="class-panel__title">Class schedule</h2>
+                    <p class="class-panel__hint">Scheduled teaching time and room.</p>
+                </div>
+            </div>
+            <div class="data-table-wrap">
+                <table class="class-table">
+                    <thead><tr><th>Day</th><th>Time</th><th>Room</th></tr></thead>
+                    <tbody>
+                    {% for item in schedules %}
+                        <tr>
+                            <td class="table-primary">{{ ['','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][item.day_of_week] }}</td>
+                            <td>{{ item.start_time }}–{{ item.end_time }}</td>
+                            <td>{{ item.room or '—' }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="3" class="class-empty">No schedule configured.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
+
+<script>
+(function () {
+    const method = document.getElementById('method');
+    const passwordField = document.getElementById('password-field');
+    const qrField = document.getElementById('qr-refresh-field');
+
+    function updateAttendanceFields() {
+        const value = method.value;
+        passwordField.style.display = ['PASSWORD', 'QR_PASSWORD'].includes(value) ? 'flex' : 'none';
+        qrField.style.display = ['QR_CODE', 'QR_PASSWORD'].includes(value) ? 'flex' : 'none';
+    }
+
+    method.addEventListener('change', updateAttendanceFields);
+    updateAttendanceFields();
+
+    function attachTableSearch(inputId, tableId, countId, noun) {
+        const input = document.getElementById(inputId);
+        const table = document.getElementById(tableId);
+        const count = document.getElementById(countId);
+        if (!input || !table || !count) return;
+
+        const body = table.querySelector('tbody');
+        const rows = Array.from(body.querySelectorAll('tr')).filter(row => !row.querySelector('.class-empty'));
+        const noMatch = document.createElement('tr');
+        noMatch.className = 'table-no-match';
+        noMatch.innerHTML = '<td colspan="10">No matching records found.</td>';
+        body.appendChild(noMatch);
+
+        function filterRows() {
+            const query = input.value.trim().toLocaleLowerCase();
+            let visible = 0;
+            rows.forEach(row => {
+                const matches = row.innerText.toLocaleLowerCase().includes(query);
+                row.style.display = matches ? '' : 'none';
+                if (matches) visible++;
+            });
+            noMatch.style.display = visible === 0 && rows.length > 0 ? 'table-row' : 'none';
+            count.textContent = visible + ' / ' + rows.length + ' ' + noun;
+        }
+
+        input.addEventListener('input', filterRows);
+        filterRows();
+    }
+
+    attachTableSearch('session-search', 'sessions-table', 'session-count', 'sessions');
+    attachTableSearch('student-search', 'students-table', 'student-count', 'students');
+})();
+</script>
 {% endblock %}

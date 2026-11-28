@@ -89,7 +89,17 @@
               <td><div class="dp-dept"><div class="dp-avatar">{{ department.department_name[:1]|upper }}</div><div><div class="dp-dept-name">{{ department.department_name }}</div><div class="dp-code">{{ department.department_code }}</div></div></div></td>
               <td><span class="dp-id">#{{ department.department_id }}</span></td>
               <td><div class="dp-desc">{{ department.description or 'No description provided' }}</div></td>
-              <td class="dp-actions"><form method="POST" action="{{ url_for('admin.delete_department', department_id=department.department_id) }}" onsubmit="return confirm('Delete this department? Departments linked to courses cannot be deleted.');"><button class="dp-delete" type="submit">Delete</button></form></td>
+              <td class="dp-actions">
+                <details style="margin-bottom:7px">
+                  <summary style="cursor:pointer;color:#3553c7;font-size:11px;font-weight:800">Edit</summary>
+                  <form method="POST" action="{{ url_for('admin.update_department', department_id=department.department_id) }}" style="min-width:190px;padding:8px">
+                    <input name="department_name" value="{{ department.department_name }}" maxlength="100" required style="width:100%;margin-bottom:6px;padding:7px">
+                    <textarea name="description" maxlength="500" style="width:100%;margin-bottom:6px;padding:7px">{{ department.description or '' }}</textarea>
+                    <button class="dp-submit" type="submit">Save changes</button>
+                  </form>
+                </details>
+                <form method="POST" action="{{ url_for('admin.delete_department', department_id=department.department_id) }}" onsubmit="return confirm('Delete this department? Departments linked to courses cannot be deleted.');"><button class="dp-delete" type="submit">Delete</button></form>
+              </td>
             </tr>
           {% else %}
             <tr><td colspan="4" class="dp-empty"><span class="dp-empty-icon">▦</span><strong>No departments yet</strong><br>Create your first department using the form.</td></tr>
